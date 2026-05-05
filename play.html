@@ -11,25 +11,26 @@
 <body>
     <div id="gamemonetize-video"></div>
     <script type="text/javascript">
-       // NEW LOGIC: This pulls the "id" from the URL you send from Godot
+       // Grab the ID from the URL (e.g., play.html?id=123)
        const urlParams = new URLSearchParams(window.location.search);
        const gameIdFromUrl = urlParams.get('id'); 
-       
-       // If no ID is sent, it uses your first game as a backup
-       const finalGameId = gameIdFromUrl || "agu0p586bavi5kby0n33641d98me4ekt";
 
-       window.VIDEO_OPTIONS = {
-           gameid : finalGameId,
-           width  : "100%",
-           height : "100%",
-           color  : "#141414",
-           getAds : "true" 
-       };
+       if (gameIdFromUrl) {
+           window.VIDEO_OPTIONS = {
+               gameid : gameIdFromUrl,
+               width  : "100%",
+               height : "100%",
+               color  : "#141414",
+               getAds : "true" 
+           };
 
-       (function (a, b, c) {
-          var d = a.getElementsByTagName(b)[0];
-          a.getElementById(c) || (a = a.createElement(b), a.id = c, a.src = "https://api.gamemonetize.com/video.js", d.parentNode.insertBefore(a, d))
-       })(document, "script", "gamemonetize-video-api"); 
+           (function (a, b, c) {
+              var d = a.getElementsByTagName(b)[0];
+              a.getElementById(c) || (a = a.createElement(b), a.id = c, a.src = "https://api.gamemonetize.com/video.js", d.parentNode.insertBefore(a, d))
+           })(document, "script", "gamemonetize-video-api"); 
+       } else {
+           console.error("No Game ID provided in URL.");
+       }
     </script>
 </body>
 </html>
