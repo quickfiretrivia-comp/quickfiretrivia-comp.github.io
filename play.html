@@ -5,19 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; }
-        #game-container { width: 100%; height: 100%; }
+        #gamemonetize-video { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
     <div id="gamemonetize-video"></div>
     <script type="text/javascript">
+       // NEW LOGIC: This pulls the "id" from the URL you send from Godot
+       const urlParams = new URLSearchParams(window.location.search);
+       const gameIdFromUrl = urlParams.get('id'); 
+       
+       // If no ID is sent, it uses your first game as a backup
+       const finalGameId = gameIdFromUrl || "agu0p586bavi5kby0n33641d98me4ekt";
+
        window.VIDEO_OPTIONS = {
-           gameid : "agu0p586bavi5kby0n33641d98me4ekt", // Your verified Game ID
+           gameid : finalGameId,
            width  : "100%",
            height : "100%",
            color  : "#141414",
-           getAds : "true" // CHANGED TO TRUE TO ENABLE REVENUE
+           getAds : "true" 
        };
+
        (function (a, b, c) {
           var d = a.getElementsByTagName(b)[0];
           a.getElementById(c) || (a = a.createElement(b), a.id = c, a.src = "https://api.gamemonetize.com/video.js", d.parentNode.insertBefore(a, d))
