@@ -4,59 +4,78 @@
     <title>Arcade Portal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; }
-        #gamemonetize-video { width: 100%; height: 100%; display: block; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { 
+            width: 100%; height: 100%; 
+            overflow: hidden; 
+            background-color: #000; 
+        }
+        #gamemonetize-video { 
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%; 
+            display: block; 
+        }
+        /* Ensure any iframe the SDK injects also fills the screen */
+        #gamemonetize-video iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: none;
+        }
     </style>
 </head>
 <body>
     <div id="gamemonetize-video"></div>
     
     <script type="text/javascript">
-        // 1. Get Game ID from URL
         const urlParams = new URLSearchParams(window.location.search);
-        const gameIdFromUrl = urlParams.get('id'); 
+        const gameIdFromUrl = urlParams.get('id');
 
-        // 2. Only run if ID exists
         if (gameIdFromUrl) {
             console.log("Loading Game: " + gameIdFromUrl);
-            
+
             window.VIDEO_OPTIONS = {
-                gameid : gameIdFromUrl,
-                width  : "100%",
-                height : "100%",
-                color  : "#141414",
-                getAds : "true" 
+                gameid: gameIdFromUrl,
+                width:  "100%",
+                height: "100%",
+                color:  "#141414",
+                getAds: "true"
             };
 
-            // 3. Use a more robust loading method
             function loadGameSDK() {
                 var script = document.createElement("script");
-                script.id = "gamemonetize-video-api";
+                script.id   = "gamemonetize-video-api";
                 script.type = "text/javascript";
-                // Forced HTTPS to prevent Mixed Content blocks in Android
-                script.src = "https://api.gamemonetize.com/video.js";
-                
+                script.src  = "https://api.gamemonetize.com/video.js";
                 script.onload = function() {
-                    console.log("GameMonetize SDK Loaded successfully.");
+                    console.log("GameMonetize SDK Loaded.");
+                    // Force any injected iframe to fill the screen
+                    setTimeout(function() {
+                        var iframes = document.querySelectorAll('iframe');
+                        iframes.forEach(function(f) {
+                            f.style.width  = '100%';
+                            f.style.height = '100%';
+                            f.style.border = 'none';
+                            f.style.position = 'fixed';
+                            f.style.top  = '0';
+                            f.style.left = '0';
+                        });
+                    }, 1500);
                 };
-                
                 script.onerror = function() {
-                    console.error("Failed to load GameMonetize SDK. Check internet or ads.txt.");
+                    console.error("Failed to load GameMonetize SDK.");
+                    document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:40%'>Failed to load game.<br>Check your connection.</h2>";
                 };
-
                 document.head.appendChild(script);
             }
 
-            // 4. Wait for the page to be fully ready before calling the SDK
             if (document.readyState === 'complete') {
                 loadGameSDK();
             } else {
                 window.addEventListener('load', loadGameSDK);
             }
-
         } else {
-            document.body.innerHTML = "<h2 style='color:white; text-align:center;'>Invalid Game Link</h2>";
-            console.error("No Game ID provided in URL.");
+            document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:40%'>Invalid Game Link</h2>";
         }
     </script>
 </body>
