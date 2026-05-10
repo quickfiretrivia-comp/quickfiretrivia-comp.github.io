@@ -1,112 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Arcade Portal</title>
+    <title>Game Portal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
             background-color: #000;
         }
-
-        #gamemonetize-video {
+        #game-frame {
             position: fixed;
             top: 0; left: 0;
             width: 100%;
             height: 100%;
+            border: none;
             display: block;
-            background-color: #000;
-        }
-
-        #gamemonetize-video iframe,
-        #gamemonetize-video div,
-        #gamemonetize-video canvas {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
         }
     </style>
 </head>
 <body>
-    <div id="gamemonetize-video"></div>
+    <iframe 
+        id="game-frame"
+        src=""
+        allowfullscreen
+        allow="autoplay; fullscreen; payment"
+        scrolling="no"
+        frameborder="0">
+    </iframe>
 
-    <script type="text/javascript">
-        // Fix viewport height for Android WebView (vh units are unreliable)
-        function setViewportHeight() {
-            var vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', vh + 'px');
-            document.documentElement.style.height = window.innerHeight + 'px';
-            document.body.style.height = window.innerHeight + 'px';
-        }
-        setViewportHeight();
-        window.addEventListener('resize', setViewportHeight);
+    <script>
+        var params = new URLSearchParams(window.location.search);
+        var gameId = params.get('id');
 
-        var gameContainer = document.getElementById('gamemonetize-video');
-        gameContainer.style.height = window.innerHeight + 'px';
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const gameIdFromUrl = urlParams.get('id');
-
-        if (gameIdFromUrl) {
-            console.log("Loading Game ID: " + gameIdFromUrl);
-
-            window.VIDEO_OPTIONS = {
-                gameid: gameIdFromUrl,
-                width:  "100%",
-                height: "100%",
-                color:  "#141414",
-                getAds: "true"
-            };
-
-            function fixAllChildren() {
-                // Fix iframes, divs and canvases the SDK may inject
-                var elements = gameContainer.querySelectorAll('iframe, div, canvas');
-                elements.forEach(function(el) {
-                    el.style.cssText += ';position:fixed!important;top:0!important;left:0!important;width:100%!important;height:' + window.innerHeight + 'px!important;border:none!important;';
-                });
-            }
-
-            function loadGameSDK() {
-                var existing = document.getElementById('gamemonetize-video-api');
-                if (existing) existing.parentNode.removeChild(existing);
-
-                var script = document.createElement("script");
-                script.id   = "gamemonetize-video-api";
-                script.type = "text/javascript";
-                script.src  = "https://api.gamemonetize.com/video.js";
-
-                script.onload = function() {
-                    console.log("GameMonetize SDK loaded.");
-                    // Run fix at intervals to catch late-injected elements
-                    setTimeout(fixAllChildren, 500);
-                    setTimeout(fixAllChildren, 1500);
-                    setTimeout(fixAllChildren, 3000);
-                };
-
-                script.onerror = function() {
-                    console.error("SDK failed to load.");
-                    document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:40%'>Failed to load.<br>Check connection.</h2>";
-                };
-
-                document.head.appendChild(script);
-            }
-
-            if (document.readyState === 'complete') {
-                loadGameSDK();
-            } else {
-                window.addEventListener('load', loadGameSDK);
-            }
+        if (gameId) {
+            // This is the correct GameMonetize playable game embed URL
+            document.getElementById('game-frame').src = 
+                'https://html5.gamemonetize.com/' + gameId + '/';
         } else {
-            document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:40%'>Invalid Game Link</h2>";
+            document.body.innerHTML = 
+                "<h2 style='color:white;text-align:center;margin-top:40%'>Invalid Game Link</h2>";
         }
     </script>
 </body>
