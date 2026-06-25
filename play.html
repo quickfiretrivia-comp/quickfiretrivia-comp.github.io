@@ -22,6 +22,27 @@
             display: block;
         }
 
+        /* --- ADD THIS: Portrait-specific overrides --- */
+        @media screen and (orientation: portrait) {
+            #game-frame {
+                /* In portrait, some games may be taller than the screen.
+                   overflow: auto on a fixed iframe won't work, so we
+                   switch to absolute positioning to allow natural scroll
+                   only if the game content exceeds the viewport height. */
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                min-height: 100vh;
+            }
+
+            body, html {
+                /* Allow vertical scroll only in portrait if game overflows */
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+        }
+        /* --- END PORTRAIT OVERRIDES --- */
+
         #loading-screen {
             position: fixed;
             top: 0; left: 0;
@@ -50,11 +71,9 @@
     </style>
 </head>
 <body>
-
     <div id="loading-screen">
         <p>CONNECTING TO SERVERS</p>
     </div>
-
     <iframe
         id="game-frame"
         src=""
@@ -63,11 +82,9 @@
         scrolling="no"
         frameborder="0">
     </iframe>
-
     <script>
         var params = new URLSearchParams(window.location.search);
         var gameId = params.get('id');
-
         var frame         = document.getElementById('game-frame');
         var loadingScreen = document.getElementById('loading-screen');
         var gameUrl       = gameId ? 'https://html5.gamemonetize.com/' + gameId + '/' : null;
@@ -76,27 +93,30 @@
             loadingScreen.style.display = 'none';
             document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:40%;font-family:sans-serif'>Invalid Game Link</h2>";
         } else {
-
-            // Hide loading screen once iframe content has loaded
             frame.addEventListener('load', function () {
                 if (navigator.onLine) {
                     loadingScreen.style.display = 'none';
                 }
             });
 
-            // When internet is restored (after Kotlin offline page showed),
-            // the Kotlin WebViewClient reloads — this catches it if the page
-            // itself regains connection awareness
             window.addEventListener('online', function () {
                 loadingScreen.style.display = 'flex';
                 frame.src = gameUrl;
             });
 
-            // Load the game
+            // --- ADD THIS: re-fit the iframe on orientation change ---
+            window.addEventListener('orientationchange', function () {
+                // Small delay lets the browser finish rotating before we resize
+                setTimeout(function () {
+                    frame.style.width  = window.innerWidth  + 'px';
+                    frame.style.height = window.innerHeight + 'px';
+                }, 300);
+            });
+            // --- END ADDITION ---
+
             if (navigator.onLine) {
                 frame.src = gameUrl;
             } else {
-                // Kotlin will have already shown the offline page at this point
                 loadingScreen.style.display = 'none';
             }
         }
