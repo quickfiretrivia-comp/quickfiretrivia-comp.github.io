@@ -260,7 +260,12 @@ let sessionReactions = {}; // { emoji: count }
 let sessionStamps = [];    // [ { videoId, displayName, timestamp } ]
 let sessionPicks  = [];    // [ { chosen, options } ]
 let dailyPickShown = false;
+let videoAdSeconds          = 0;
+let adBreakThresholdReached = false;
+let videoAdActive           = false;
+let videoAdTimerInterval    = null;
 
+ 
 // Demo video pool (used as fallback + supplement when Pexels key is absent)
 const DEMO_VIDEOS = [
   {
@@ -286,6 +291,42 @@ const DEMO_VIDEOS = [
   }
 ];
 
+function startVideoAdTimer() {
+  if (videoAdTimerInterval) return;
+  videoAdTimerInterval = setInterval(() => {
+    if (videoAdActive) return; // don't count during an active ad
+    const activeSlide = document.querySelectorAll('.slide')[currentIndex];
+    const vid = activeSlide?.querySelector('video');
+    if (vid && !vid.paused) {
+      videoAdSeconds++;
+      if (videoAdSeconds >= 180) {
+        adBreakThresholdReached = true;
+        videoAdSeconds = 0; // reset so we don't fire again immediately after resume
+      }
+    }
+  }, 1000);
+}
+
+// Called by the page when conditions are met (pause or swipe).
+function triggerVideoAdBreak() {
+  videoAdActive = true;
+  adBreakThresholdReached = false;
+  postToGodot({ type: 'show_interstitial' });
+}
+
+// Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
+function resumePlayback() {
+  videoAdActive = false;
+  const activeSlide = document.querySelectorAll('.slide')[currentIndex];
+  const vid = activeSlide?.querySelector('video');
+  if (vid) {
+    vid.play().catch(() => {});
+    startProgress(vid);
+    showCenterIcon('▶');
+  }
+  startVideoAdTimer(); // restart the 3-minute clock
+}
+ 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 function addTokens(n, label) {
   tokenBalance += n;
@@ -403,6 +444,7 @@ function buildFeed() {
 
   // Show daily pick after 8 seconds
   setTimeout(triggerDailyPick, 8000);
+  startVideoAdTimer(); // begin the 3-minute ad-break accumulation clock
 }
 
 function activateSlide(index) {
@@ -455,7 +497,23 @@ function onTimeUpdate(e) {}
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function nextSlide() {
-  if (currentIndex < slides.length - 1) activateSlide(currentIndex + 1);
+  if (currentIndex >= slides.length - 1) return;
+
+  if (adBreakThresholdReached) {
+    // Advance to the new slide first (it will auto-play via activateSlide)
+    // then immediately pause it before requesting the ad
+    activateSlide(currentIndex + 1);
+    const activeSlide = document.querySelectorAll('.slide')[currentIndex];
+    const vid = activeSlide?.querySelector('video');
+    if (vid) {
+      vid.pause();
+      clearInterval(progressTimer);
+    }
+    triggerVideoAdBreak();
+    return;
+  }
+
+  activateSlide(currentIndex + 1);
 }
 function prevSlide() {
   if (currentIndex > 0) activateSlide(currentIndex - 1);
@@ -512,13 +570,21 @@ function toggleTapPause() {
   if (!vid) return;
 
   if (vid.paused) {
-    vid.play().catch(() => {});
-    startProgress(vid);
-    showCenterIcon('▶');
+    // Resuming — only play if no ad is currently active
+    if (!videoAdActive) {
+      vid.play().catch(() => {});
+      startProgress(vid);
+      showCenterIcon('▶');
+    }
   } else {
+    // Pausing
     vid.pause();
     clearInterval(progressTimer);
     showCenterIcon('⏸');
+    // If 3 minutes have elapsed, this pause is the trigger moment
+    if (adBreakThresholdReached) {
+      triggerVideoAdBreak();
+    }
   }
 }
 
