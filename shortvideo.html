@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Short Video</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --gold: #ffd700;
+    --gold-dim: rgba(255,215,0,0.15);
+    --gold-border: rgba(255,215,0,0.45);
+    --white: #ffffff;
+    --overlay: rgba(0,0,0,0.35);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* ── Feed container ── */
+  #feed {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Individual video slide ── */
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.25s;
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1; pointer-events: all;
+  }
+
+  /* Pexels background video */
+  .slide video, .slide iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border: none;
+  }
+
+  /* Dark gradient overlays */
+  .overlay-top {
+    position: absolute; top: 0; left: 0; right: 0; height: 120px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
+    pointer-events: none; z-index: 5;
+  }
+  .overlay-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 280px;
+    background: linear-gradient(to top, rgba(0,0,0,0.80), transparent);
+    pointer-events: none; z-index: 5;
+  }
+
+  /* ── Top bar ── */
+  #top-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+    padding: 14px 16px 8px;
+    display: flex; align-items: center; justify-content: flex-end;
+  }
+  #token-badge {
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+    border-radius: 20px; padding: 4px 10px;
+    font-size: 12px; color: var(--gold); font-weight: 600;
+    transition: transform 0.2s;
+  }
+  #token-badge.bump { transform: scale(1.2); }
+
+  /* ── Bottom info: user + caption ── */
+  .info-area {
+    position: absolute; bottom: 110px; left: 14px; right: 72px; z-index: 10;
+  }
+  .username { color: #fff; font-weight: 700; font-size: 15px; margin-bottom: 5px; }
+  .caption { color: rgba(255,255,255,0.88); font-size: 13px; line-height: 1.45; }
+
+  /* ── Right sidebar actions ── */
+  .right-actions {
+    position: absolute; bottom: 110px; right: 10px; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .action { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+  .action-circle {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; transition: transform 0.15s;
+  }
+  .action-circle:active { transform: scale(0.9); }
+  .action span { color: #fff; font-size: 11px; text-align: center; }
+  /* ── Progress bar ── */
+  #progress-wrap {
+    position: fixed; bottom: 94px; left: 0; right: 0; z-index: 20;
+    padding: 0 14px;
+  }
+  #progress-track {
+    height: 2.5px; background: rgba(255,255,255,0.25); border-radius: 2px;
+  }
+  #progress-fill {
+    height: 100%; background: #fff; border-radius: 2px;
+    width: 0%; transition: width 0.5s linear;
+  }
+
+  /* ── Reaction bar ── */
+  #reactions {
+    position: fixed; bottom: 12px; left: 0; right: 0; z-index: 20;
+    display: flex; gap: 8px; justify-content: center; padding: 0 10px;
+  }
+  .react-btn {
+    flex: 1; max-width: 64px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 24px; padding: 7px 6px;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    cursor: pointer; transition: background 0.2s, transform 0.15s;
+    touch-action: manipulation;
+  }
+  .react-btn:active { transform: scale(0.92); }
+  .react-btn.tapped {
+    background: rgba(255,255,255,0.28);
+    border-color: rgba(255,255,255,0.7);
+  }
+  .react-btn .emoji { font-size: 18px; line-height: 1; }
+  .react-btn .rcount { color: #fff; font-size: 10px; }
+
+  /* ── Toast notifications ── */
+  #toast {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: rgba(20,20,20,0.9);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px; padding: 8px 18px;
+    color: #fff; font-size: 13px;
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    z-index: 50; white-space: nowrap;
+    backdrop-filter: blur(8px);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Daily pick panel ── */
+  #daily-pick {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
+    background: rgba(10,10,10,0.95);
+    border-top: 1px solid rgba(255,255,255,0.12);
+    padding: 16px 14px 24px;
+    transform: translateY(100%); transition: transform 0.3s ease;
+    backdrop-filter: blur(12px);
+  }
+  #daily-pick.open { transform: translateY(0); }
+  #daily-pick h3 { color: #fff; font-size: 14px; margin-bottom: 4px; }
+  #daily-pick p { color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 14px; }
+  .pick-options { display: flex; gap: 8px; }
+  .pick-option {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; padding: 12px 8px;
+    cursor: pointer; text-align: center;
+    transition: background 0.2s, border-color 0.2s;
+    touch-action: manipulation;
+  }
+  .pick-option:active { background: rgba(255,255,255,0.15); }
+  .pick-option.chosen {
+    background: rgba(114,9,183,0.25);
+    border-color: rgba(114,9,183,0.7);
+  }
+  .pick-option .pick-icon { font-size: 22px; display: block; margin-bottom: 5px; }
+  .pick-option .pick-label { color: rgba(255,255,255,0.8); font-size: 11px; }
+  #daily-pick-close {
+    position: absolute; top: 12px; right: 14px;
+    color: rgba(255,255,255,0.4); font-size: 20px; cursor: pointer;
+  }
+
+  /* swipe hint arrow */
+  #swipe-hint {
+    position: fixed; bottom: 96px; right: 16px; z-index: 15;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    opacity: 0.5; animation: bounce 1.5s infinite;
+    pointer-events: none;
+  }
+  #swipe-hint span { color: #fff; font-size: 10px; }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- Top navigation bar -->
+<div id="top-bar">
+  <div id="token-badge">0 tokens</div>
+</div>
+
+<!-- Progress bar -->
+<div id="progress-wrap">
+  <div id="progress-track"><div id="progress-fill"></div></div>
+</div>
+
+<!-- Reaction buttons -->
+<div id="reactions">
+  <div class="react-btn" data-emoji="🔥" onclick="react(this)">
+    <span class="emoji">🔥</span><span class="rcount">0</span>
+  </div>
+  <div class="react-btn" data-emoji="😴" onclick="react(this)">
+    <span class="emoji">😴</span><span class="rcount">0</span>
+  </div>
+  <div class="react-btn" data-emoji="😂" onclick="react(this)">
+    <span class="emoji">😂</span><span class="rcount">0</span>
+  </div>
+  <div class="react-btn" data-emoji="🤯" onclick="react(this)">
+    <span class="emoji">🤯</span><span class="rcount">0</span>
+  </div>
+  <div class="react-btn" data-emoji="❤️" onclick="react(this)">
+    <span class="emoji">❤️</span><span class="rcount">0</span>
+  </div>
+</div>
+
+<!-- Swipe hint -->
+<div id="swipe-hint">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <path d="M12 5v14M5 12l7 7 7-7" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <span>swipe</span>
+</div>
+
+<!-- Feed -->
+<div id="feed"></div>
+
+<!-- Daily pick panel -->
+<div id="daily-pick">
+  <span id="daily-pick-close" onclick="closeDailyPick()">&#x2715;</span>
+  <h3>Which would you share with a friend?</h3>
+  <p>One tap · earn 1 token</p>
+  <div class="pick-options" id="pick-options"></div>
+</div>
+
+<script>
+// ── CONFIG — replace keys with your own ──────────────────────────────────────
+const PEXELS_API_KEY = 'YOUR_PEXELS_API_KEY';
+const PEXELS_QUERIES = ['nature', 'city timelapse', 'ocean', 'wildlife', 'space'];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let tokenBalance = 0;
+let currentIndex  = 0;
+let slides        = [];
+let progressTimer = null;
+let progressVal   = 0;
+let videoStartTime = null;
+let sessionReactions = {}; // { emoji: count }
+let sessionStamps = [];    // [ { videoId, displayName, timestamp } ]
+let sessionPicks  = [];    // [ { chosen, options } ]
+let dailyPickShown = false;
+
+// Demo video pool (used as fallback + supplement when Pexels key is absent)
+const DEMO_VIDEOS = [
+  {
+    id: 'demo_001',                  // internal id — sent to Godot, never shown
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    displayName: 'Forest Stream Loop',  // shown on screen
+    caption: 'Watch this and react below to earn tokens #explore',
+    thumbnail: ''
+  },
+  {
+    id: 'demo_002',
+    videoUrl: 'https://www.w3schools.com/html/movie.mp4',
+    displayName: 'City Night Drive',
+    caption: 'How are you feeling today? React and earn #mood',
+    thumbnail: ''
+  },
+  {
+    id: 'demo_003',
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    displayName: 'Sunset Timelapse',
+    caption: 'Would you share this? See the daily pick below!',
+    thumbnail: ''
+  }
+];
+
+// ── Token helpers ─────────────────────────────────────────────────────────────
+function addTokens(n, label) {
+  tokenBalance += n;
+  const badge = document.getElementById('token-badge');
+  badge.textContent = tokenBalance + ' token' + (tokenBalance !== 1 ? 's' : '');
+  badge.classList.add('bump');
+  setTimeout(() => badge.classList.remove('bump'), 300);
+  showToast((n > 0 ? '+' + n : n) + ' ' + (n === 1 ? 'token' : 'tokens') + ' — ' + label);
+  postToGodot({ type: 'tokens', delta: n, total: tokenBalance, reason: label });
+}
+
+function postToGodot(data) {
+  // Bridge to Godot via URL scheme if available
+  try {
+    if (window.JavaScriptBridge) {
+      window.JavaScriptBridge.call('receive_video_data', JSON.stringify(data));
+    }
+  } catch(e) {}
+  console.log('[Godot bridge]', JSON.stringify(data));
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Build slides ──────────────────────────────────────────────────────────────
+async function loadVideos() {
+  let videos = [];
+  if (PEXELS_API_KEY && PEXELS_API_KEY !== 'YOUR_PEXELS_API_KEY') {
+    try {
+      const query = PEXELS_QUERIES[Math.floor(Math.random() * PEXELS_QUERIES.length)];
+      const res = await fetch(`https://api.pexels.com/videos/search?query=${query}&per_page=6&orientation=portrait`, {
+        headers: { Authorization: PEXELS_API_KEY }
+      });
+      const data = await res.json();
+      videos = (data.videos || []).map(v => ({
+        id: 'pexels_' + v.id,                                  // internal id — Godot only
+        videoUrl: v.video_files.find(f => f.quality === 'hd' || f.quality === 'sd')?.link || v.video_files[0].link,
+        displayName: (v.url.split('/').filter(Boolean).pop() || 'video')
+          .replace(/-\d+$/, '')        // strip trailing numeric id
+          .replace(/-/g, ' ')          // dashes to spaces
+          .replace(/\b\w/g, c => c.toUpperCase()), // title case
+        caption: 'Watch and react to earn tokens',
+        thumbnail: v.image
+      }));
+    } catch(e) { console.warn('Pexels fetch failed, using demo videos'); }
+  }
+  // Always append demo videos as fallback/padding
+  videos = [...videos, ...DEMO_VIDEOS];
+  slides = videos;
+  buildFeed();
+}
+
+function buildFeed() {
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '';
+  slides.forEach((v, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'slide' + (i === 0 ? ' active' : '');
+    slide.dataset.id = v.id;
+    slide.dataset.index = i;
+
+    // Video element
+    const vid = document.createElement('video');
+    vid.src = v.videoUrl;
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.preload = 'metadata';
+    vid.setAttribute('playsinline', '');
+    vid.addEventListener('timeupdate', onTimeUpdate);
+    vid.addEventListener('loadedmetadata', () => {
+      if (i === currentIndex) startProgress(vid);
+    });
+    slide.appendChild(vid);
+
+    // Overlays
+    const ot = document.createElement('div'); ot.className = 'overlay-top';
+    const ob = document.createElement('div'); ob.className = 'overlay-bottom';
+    slide.appendChild(ot); slide.appendChild(ob);
+
+    // Info
+    const info = document.createElement('div'); info.className = 'info-area';
+    info.innerHTML = `<div class="username">${v.displayName}</div><div class="caption">${v.caption}</div>`;
+    slide.appendChild(info);
+
+    // Right actions
+    const ra = document.createElement('div'); ra.className = 'right-actions';
+    ra.innerHTML = `
+      <div class="action" onclick="stampMoment(${i})">
+        <div class="action-circle">⭐</div>
+        <span>stamp</span>
+      </div>
+    `;
+    slide.appendChild(ra);
+
+    feed.appendChild(slide);
+  });
+
+  // Start first video
+  activateSlide(0);
+
+  // Swipe / scroll handling
+  setupSwipe(feed);
+  feed.addEventListener('wheel', e => {
+    if (e.deltaY > 30) nextSlide();
+    else if (e.deltaY < -30) prevSlide();
+  }, { passive: true });
+
+  // Show daily pick after 8 seconds
+  setTimeout(triggerDailyPick, 8000);
+}
+
+function activateSlide(index) {
+  const allSlides = document.querySelectorAll('.slide');
+  allSlides.forEach((s, i) => {
+    s.classList.toggle('active', i === index);
+    const vid = s.querySelector('video');
+    if (vid) {
+      if (i === index) {
+        vid.play().catch(() => {});
+        resetProgress();
+        startProgress(vid);
+        videoStartTime = Date.now();
+      } else {
+        vid.pause();
+        vid.currentTime = 0;
+      }
+    }
+  });
+  resetReactionBar();
+  currentIndex = index;
+
+  // Award watch token after watching more than 5 seconds total per video
+  setTimeout(() => {
+    const active = document.querySelectorAll('.slide')[currentIndex];
+    if (active && active.classList.contains('active')) {
+      addTokens(1, 'watching a video');
+    }
+  }, 5000);
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+function startProgress(vid) {
+  clearInterval(progressTimer);
+  progressVal = 0;
+  progressTimer = setInterval(() => {
+    if (!vid.duration) return;
+    progressVal = (vid.currentTime / vid.duration) * 100;
+    document.getElementById('progress-fill').style.width = progressVal + '%';
+    if (progressVal >= 99) clearInterval(progressTimer);
+  }, 500);
+}
+
+function resetProgress() {
+  clearInterval(progressTimer);
+  document.getElementById('progress-fill').style.width = '0%';
+}
+
+function onTimeUpdate(e) {}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function nextSlide() {
+  if (currentIndex < slides.length - 1) activateSlide(currentIndex + 1);
+}
+function prevSlide() {
+  if (currentIndex > 0) activateSlide(currentIndex - 1);
+}
+
+// ── Touch / swipe / tap ───────────────────────────────────────────────────────
+function setupSwipe(el) {
+  let startY = null;
+  let startX = null;
+  let startTime = 0;
+
+  el.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    startTime = Date.now();
+  }, { passive: true });
+
+  el.addEventListener('touchend', e => {
+    if (startY === null) return;
+    const endY = e.changedTouches[0].clientY;
+    const endX = e.changedTouches[0].clientX;
+    const dy = startY - endY;
+    const dx = startX - endX;
+    const elapsed = Date.now() - startTime;
+
+    const isSwipe = Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx);
+    const isTap = Math.abs(dy) < 12 && Math.abs(dx) < 12 && elapsed < 300;
+
+    if (isSwipe) {
+      if (dy > 0) nextSlide();
+      else prevSlide();
+    } else if (isTap) {
+      // Ignore taps that land on a button/control (reactions, stamp, etc.)
+      if (!e.target.closest('.react-btn, .action, #top-bar, #daily-pick')) {
+        toggleTapPause();
+      }
+    }
+
+    startY = null; startX = null;
+  }, { passive: true });
+
+  // Mouse click fallback for desktop testing
+  el.addEventListener('click', e => {
+    if (!e.target.closest('.react-btn, .action, #top-bar, #daily-pick')) {
+      toggleTapPause();
+    }
+  });
+}
+
+// ── Tap-to-pause/resume (TikTok-style) ────────────────────────────────────────
+function toggleTapPause() {
+  const activeSlide = document.querySelectorAll('.slide')[currentIndex];
+  const vid = activeSlide?.querySelector('video');
+  if (!vid) return;
+
+  if (vid.paused) {
+    vid.play().catch(() => {});
+    startProgress(vid);
+    showCenterIcon('▶');
+  } else {
+    vid.pause();
+    clearInterval(progressTimer);
+    showCenterIcon('⏸');
+  }
+}
+
+function showCenterIcon(symbol) {
+  let icon = document.getElementById('center-pause-icon');
+  if (!icon) {
+    icon = document.createElement('div');
+    icon.id = 'center-pause-icon';
+    icon.style.cssText = `
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 64px; height: 64px; border-radius: 50%;
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; color: #fff; z-index: 25;
+      opacity: 0; transition: opacity 0.2s;
+      pointer-events: none;
+    `;
+    document.body.appendChild(icon);
+  }
+  icon.textContent = symbol;
+  icon.style.opacity = '1';
+  clearTimeout(icon._hideTimer);
+  icon._hideTimer = setTimeout(() => { icon.style.opacity = '0'; }, 450);
+}
+
+// ── Reactions ─────────────────────────────────────────────────────────────────
+function react(btn) {
+  const emoji = btn.dataset.emoji;
+  if (btn.classList.contains('tapped')) return; // already reacted with this one
+  btn.classList.add('tapped');
+  const countEl = btn.querySelector('.rcount');
+  countEl.textContent = parseInt(countEl.textContent) + 1;
+
+  sessionReactions[emoji] = (sessionReactions[emoji] || 0) + 1;
+  addTokens(1, 'reacting ' + emoji);
+  postToGodot({ type: 'reaction', emoji, videoId: slides[currentIndex]?.id, displayName: slides[currentIndex]?.displayName, reactions: sessionReactions });
+
+  // Animate
+  const clone = btn.querySelector('.emoji').cloneNode(true);
+  clone.style.cssText = 'position:fixed;font-size:32px;pointer-events:none;z-index:99;transition:transform 0.8s,opacity 0.8s;';
+  const rect = btn.getBoundingClientRect();
+  clone.style.left = rect.left + 'px';
+  clone.style.top  = rect.top + 'px';
+  document.body.appendChild(clone);
+  requestAnimationFrame(() => {
+    clone.style.transform = 'translateY(-80px) scale(1.5)';
+    clone.style.opacity = '0';
+  });
+  setTimeout(() => clone.remove(), 900);
+}
+
+function resetReactionBar() {
+  document.querySelectorAll('.react-btn').forEach(b => {
+    b.classList.remove('tapped');
+    b.querySelector('.rcount').textContent = '0';
+  });
+}
+
+// ── Stamp ─────────────────────────────────────────────────────────────────────
+function stampMoment(slideIndex) {
+  const activeSlides = document.querySelectorAll('.slide');
+  const vid = activeSlides[slideIndex]?.querySelector('video');
+  const ts = vid ? Math.round(vid.currentTime) : 0;
+  const videoId = slides[slideIndex]?.id;
+  const displayName = slides[slideIndex]?.displayName;
+
+  sessionStamps.push({ videoId, displayName, timestamp: ts });
+  addTokens(2, 'stamping a best moment');
+  postToGodot({ type: 'stamp', videoId, displayName, timestamp: ts, stamps: sessionStamps });
+
+  showToast('⭐ Stamped at ' + fmtTime(ts));
+}
+
+function fmtTime(s) {
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+// ── Daily pick ────────────────────────────────────────────────────────────────
+function triggerDailyPick() {
+  if (dailyPickShown) return;
+  dailyPickShown = true;
+  const pool = slides.slice(0, Math.min(3, slides.length));
+  const opts = pool.map(v => ({ id: v.id, label: v.displayName }));
+  const container = document.getElementById('pick-options');
+  container.innerHTML = '';
+  opts.forEach(opt => {
+    const div = document.createElement('div');
+    div.className = 'pick-option';
+    div.innerHTML = `<span class="pick-icon">🎬</span><span class="pick-label">${opt.label}</span>`;
+    div.onclick = () => choosePick(div, opt, opts);
+    container.appendChild(div);
+  });
+  document.getElementById('daily-pick').classList.add('open');
+}
+
+function choosePick(el, chosen, all) {
+  if (el.classList.contains('chosen')) return;
+  document.querySelectorAll('.pick-option').forEach(d => d.classList.remove('chosen'));
+  el.classList.add('chosen');
+  sessionPicks.push({ chosen: chosen.id, options: all.map(o => o.id) });
+  addTokens(1, 'daily pick vote');
+  postToGodot({ type: 'daily_pick', chosen: chosen.id, options: all.map(o => o.id) });
+  setTimeout(closeDailyPick, 1200);
+}
+
+function closeDailyPick() {
+  document.getElementById('daily-pick').classList.remove('open');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadVideos();
+</script>
+</body>
+</html>
