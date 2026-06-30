@@ -514,6 +514,52 @@ function stampMoment() {
   setTimeout(() => btn.style.background = '', 400);
 }
 
+// ── Ad-break overlay state ────────────────────────────────────────────────────
+// Counts only active playback seconds. At 180s the flag is set; the break fires
+// immediately since audio has no natural "next slide" transition to wait for.
+let adPlaySeconds   = 0;
+let adBreakActive   = false;
+let adTimerInterval = null;
+
+function startAdBreakTimer() {
+  if (adTimerInterval) return; // already running
+  adTimerInterval = setInterval(() => {
+    if (!audio.paused && !adBreakActive) {
+      adPlaySeconds++;
+      if (adPlaySeconds >= 180) {
+        pauseForInterstitial();
+      }
+    }
+  }, 1000);
+}
+
+function stopAdBreakTimer() {
+  clearInterval(adTimerInterval);
+  adTimerInterval = null;
+}
+
+// Called by this page itself when 3 min is reached.
+// Also exposed globally so Godot can call it if needed (unlikely but safe).
+function pauseForInterstitial() {
+  adBreakActive = true;
+  adPlaySeconds = 0; // reset so the next interval starts fresh after the ad
+  audio.pause();
+  updatePlayPauseUI();
+  clearInterval(watchTimer); // stop the per-minute token timer too
+  postToGodot({ type: 'show_interstitial' });
+}
+
+// Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
+function resumePlayback() {
+  adBreakActive = false;
+  if (currentTrack) {
+    audio.play().catch(() => {});
+    updatePlayPauseUI();
+    startWatchTimer();     // restart the per-minute token timer
+    startAdBreakTimer();   // restart the 3-minute ad clock
+  }
+}
+ 
 // ── Watch timer (earn tokens per minute listened) ─────────────────────────────
 function startWatchTimer() {
   clearInterval(watchTimer);
