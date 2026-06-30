@@ -435,6 +435,15 @@ function skip(seconds) {
   audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, audio.duration || 0));
 }
 
+ audio.addEventListener('play', () => {
+  startAdBreakTimer();
+});
+
+audio.addEventListener('pause', () => {
+  // Don't stop the interval here — the interval already checks audio.paused
+  // internally, so it costs nothing while paused. Stopping and restarting it
+  // on every tap-pause would risk double-counting. Let it tick and check.
+});
 // ── Seek bar ──────────────────────────────────────────────────────────────────
 let seeking = false;
 
