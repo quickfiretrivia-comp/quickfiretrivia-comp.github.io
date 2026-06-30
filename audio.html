@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Audio</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --gold: #ffd700;
+    --gold-dim: rgba(255,215,0,0.13);
+    --gold-border: rgba(255,215,0,0.4);
+    --accent: #7209b7;
+    --accent-dim: rgba(114,9,183,0.25);
+    --accent-border: rgba(114,9,183,0.6);
+  }
+
+  html, body {
+    width: 100%; min-height: 100%; overflow-x: hidden;
+    background: #0d1117;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* ── Tabs ── */
+  #tabs {
+    display: flex; justify-content: center; gap: 0;
+    padding: 16px 0 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    position: sticky; top: 0; z-index: 30;
+    background: #0d1117;
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 10px 0;
+    color: rgba(255,255,255,0.45); font-size: 14px; font-weight: 500;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s; max-width: 160px;
+  }
+  .tab.active { color: #fff; border-bottom-color: #fff; }
+
+  /* ── Token badge (fixed top right) ── */
+  #token-badge {
+    position: fixed; top: 14px; right: 14px; z-index: 40;
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+    border-radius: 20px; padding: 5px 12px;
+    font-size: 12px; color: var(--gold); font-weight: 600;
+    transition: transform 0.2s;
+  }
+  #token-badge.bump { transform: scale(1.2); }
+
+  /* ── Player panel ── */
+  #player-panel {
+    padding: 24px 20px 100px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+  }
+
+  /* Artwork */
+  #artwork {
+    width: 200px; height: 200px; border-radius: 16px;
+    overflow: hidden; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg,#3a1c71,#d76d77,#ffaf7b);
+    position: relative;
+  }
+  #artwork img { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #artwork-icon { font-size: 56px; }
+
+  /* Track info */
+  #track-info { text-align: center; width: 100%; }
+  #track-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+  #track-sub { color: rgba(255,255,255,0.45); font-size: 13px; }
+
+  /* Time / progress */
+  #time-bar { width: 100%; }
+  #seek-track {
+    width: 100%; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.15);
+    position: relative; cursor: pointer;
+    touch-action: none;
+  }
+  #seek-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), #f72585);
+    border-radius: 2px; width: 0%; pointer-events: none;
+  }
+  #seek-thumb {
+    position: absolute; top: 50%; transform: translate(-50%,-50%);
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; left: 0%;
+    pointer-events: none;
+  }
+  #time-labels { display: flex; justify-content: space-between; margin-top: 6px; }
+  #time-labels span { color: rgba(255,255,255,0.4); font-size: 11px; }
+
+  /* Controls */
+  #controls {
+    display: flex; align-items: center; justify-content: center;
+    gap: 24px;
+  }
+  .ctrl-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; touch-action: manipulation;
+  }
+  .ctrl-btn svg { transition: transform 0.15s; }
+  .ctrl-btn:active svg { transform: scale(0.88); }
+  .ctrl-btn span { font-size: 10px; color: rgba(255,255,255,0.45); }
+  #play-btn {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: #fff; border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform 0.15s;
+    touch-action: manipulation;
+  }
+  #play-btn:active { transform: scale(0.92); }
+
+  /* Action row: stamp + speed */
+  #action-row {
+    display: flex; gap: 10px; width: 100%;
+  }
+  .action-chip {
+    flex: 1; border-radius: 24px; padding: 10px 12px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    touch-action: manipulation;
+  }
+  #stamp-btn {
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+  }
+  #stamp-btn span { color: var(--gold); font-size: 13px; font-weight: 500; }
+  #stamp-btn:active { background: rgba(255,215,0,0.25); }
+  #done-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #done-btn span { color: rgba(255,255,255,0.7); font-size: 13px; }
+  #done-btn:active { background: rgba(255,255,255,0.12); }
+
+  /* ── Feed list ── */
+  #feed-list {
+    padding: 0 0 80px;
+  }
+  .feed-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer; transition: background 0.15s;
+    touch-action: manipulation;
+  }
+  .feed-item:active { background: rgba(255,255,255,0.04); }
+  .feed-item.playing { background: rgba(114,9,183,0.12); }
+  .feed-thumb {
+    width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg,#3a1c71,#d76d77);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .feed-meta { flex: 1; min-width: 0; }
+  .feed-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+  .feed-sub { color: rgba(255,255,255,0.4); font-size: 11px; }
+  .feed-dur { color: rgba(255,255,255,0.3); font-size: 11px; flex-shrink: 0; }
+  .feed-item.playing .feed-title { color: #b97fff; }
+
+  /* ── Daily pick ── */
+  #daily-pick {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
+    background: rgba(10,10,10,0.97);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 16px 16px 28px;
+    transform: translateY(100%); transition: transform 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+  #daily-pick.open { transform: translateY(0); }
+  #daily-pick h3 { font-size: 14px; margin-bottom: 3px; }
+  #daily-pick p { color: rgba(255,255,255,0.45); font-size: 12px; margin-bottom: 14px; }
+  .pick-options { display: flex; gap: 8px; }
+  .pick-option {
+    flex: 1; border-radius: 10px; padding: 12px 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    cursor: pointer; text-align: center;
+    transition: background 0.2s, border-color 0.2s;
+    touch-action: manipulation;
+  }
+  .pick-option.chosen {
+    background: var(--accent-dim); border-color: var(--accent-border);
+  }
+  .pick-option .pick-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+  .pick-option .pick-label { color: rgba(255,255,255,0.75); font-size: 11px; }
+  #dp-close {
+    position: absolute; top: 12px; right: 14px;
+    color: rgba(255,255,255,0.35); font-size: 20px; cursor: pointer;
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-16px);
+    background: rgba(20,20,20,0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px; padding: 8px 18px;
+    color: #fff; font-size: 13px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 50;
+    backdrop-filter: blur(8px);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Tabs show/hide ── */
+  .view { display: none; }
+  .view.active { display: block; }
+</style>
+</head>
+<body>
+
+<div id="token-badge">0 tokens</div>
+<div id="toast"></div>
+
+<!-- Tab bar -->
+<div id="tabs">
+  <div class="tab active" onclick="switchTab('player')">Now Playing</div>
+  <div class="tab" onclick="switchTab('podcasts')">Podcasts</div>
+  <div class="tab" onclick="switchTab('books')">Audiobooks</div>
+</div>
+
+<!-- Player view -->
+<div id="view-player" class="view active">
+  <div id="player-panel">
+    <!-- Artwork -->
+    <div id="artwork">
+      <img id="artwork-img" src="" alt="cover">
+      <span id="artwork-icon">🎙️</span>
+    </div>
+
+    <!-- Track info -->
+    <div id="track-info">
+      <div id="track-title">Select something to listen</div>
+      <div id="track-sub">Choose a podcast or audiobook below</div>
+    </div>
+
+    <!-- Seek bar -->
+    <div id="time-bar">
+      <div id="seek-track" onmousedown="seekStart(event)" ontouchstart="seekTouchStart(event)">
+        <div id="seek-fill"></div>
+        <div id="seek-thumb"></div>
+      </div>
+      <div id="time-labels"><span id="t-current">0:00</span><span id="t-total">0:00</span></div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+      <div class="ctrl-btn" onclick="skip(-15)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5V3L7 6l5 3V7a7 7 0 110 14 7 7 0 010-14z" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+          <text x="8.5" y="16" font-size="6" fill="rgba(255,255,255,0.7)" font-family="sans-serif">15</text>
+        </svg>
+        <span>-15s</span>
+      </div>
+      <button id="play-btn" onclick="togglePlay()">
+        <svg id="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <polygon points="6,4 20,12 6,20" fill="#111"/>
+        </svg>
+        <svg id="pause-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="display:none">
+          <rect x="5" y="4" width="4" height="16" rx="1" fill="#111"/>
+          <rect x="15" y="4" width="4" height="16" rx="1" fill="#111"/>
+        </svg>
+      </button>
+      <div class="ctrl-btn" onclick="skip(15)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5V3l5 3-5 3V7A7 7 0 1012 7" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+          <text x="8.5" y="16" font-size="6" fill="rgba(255,255,255,0.7)" font-family="sans-serif">15</text>
+        </svg>
+        <span>+15s</span>
+      </div>
+    </div>
+
+    <!-- Stamp + Speed -->
+    <div id="action-row">
+      <div class="action-chip" id="stamp-btn" onclick="stampMoment()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <polygon points="8,1 10,6 15,6 11,10 13,15 8,12 3,15 5,10 1,6 6,6" stroke="#ffd700" stroke-width="1.2" fill="rgba(255,215,0,0.3)"/>
+        </svg>
+        <span>Stamp best moment</span>
+      </div>
+      <div class="action-chip" id="done-btn" onclick="finishAndPickNext()">
+        <span>Done — pick next</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Podcasts view -->
+<div id="view-podcasts" class="view">
+  <div id="feed-list" id="podcast-list"></div>
+</div>
+
+<!-- Audiobooks view -->
+<div id="view-books" class="view">
+  <div id="feed-list" id="books-list"></div>
+</div>
+
+<!-- Daily pick panel -->
+<div id="daily-pick">
+  <span id="dp-close" onclick="closeDailyPick()">&#x2715;</span>
+  <h3>Which of these would you share with a friend?</h3>
+  <p>One tap · earn 1 token</p>
+  <div class="pick-options" id="pick-options"></div>
+</div>
+
+<!-- Hidden audio element -->
+<audio id="audio-el" preload="metadata"></audio>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let tokenBalance  = 0;
+let sessionStamps = [];
+let sessionPicks  = [];
+let watchedSeconds = 0;
+let watchTimer    = null;
+let dailyPickDone = false;
+let currentTrack  = null;
+let currentView   = 'player';
+
+const audio = document.getElementById('audio-el');
+
+// ── LibriVox / Podcast data ───────────────────────────────────────────────────
+// LibriVox has a public API — no key needed
+const LIBRIVOX_BOOKS = [
+  { id: 'lb1', title: 'The Hound of the Baskervilles', author: 'Arthur Conan Doyle', episode: 'Chapter 1', icon: '🐕', type: 'book',
+    url: 'https://www.librivox.org/the-hound-of-the-baskervilles-by-arthur-conan-doyle/', // landing page
+    // Direct mp3 stream from LibriVox (public domain)
+    stream: 'https://ia800201.us.archive.org/23/items/hound_baskervilles_0809_librivox/hound_of_baskervilles_01_doyle.mp3' },
+  { id: 'lb2', title: 'The Metamorphosis', author: 'Franz Kafka', episode: 'Chapter 1', icon: '🪲', type: 'book',
+    stream: 'https://ia800502.us.archive.org/27/items/metamorphosis_0711_librivox/metamorphosis_01_kafka.mp3' },
+  { id: 'lb3', title: 'Pride and Prejudice', author: 'Jane Austen', episode: 'Chapter 1', icon: '📖', type: 'book',
+    stream: 'https://ia800204.us.archive.org/11/items/pride_and_prejudice_librivox/prideandprejudice_01_austen.mp3' }
+];
+
+// Public RSS podcast samples (CORS-friendly proxied where needed)
+const PODCAST_FEEDS = [
+  { id: 'pod1', title: 'Huberman Lab', author: 'Andrew Huberman', episode: 'Episode 1', icon: '🧠', type: 'podcast',
+    stream: 'https://dts.podtrac.com/redirect.mp3/chtbl.com/track/GE54G8/cdn.hubermanlab.com/hubermanlab2.mp3' },
+  { id: 'pod2', title: 'TED Talks Daily', author: 'TED', episode: 'Ken Robinson — Do schools kill creativity?', icon: '💡', type: 'podcast',
+    stream: 'https://dts.podtrac.com/redirect.mp3/download.ted.com/talks/KenRobinson_2006.mp3' }
+];
+
+const ALL_TRACKS = [...LIBRIVOX_BOOKS, ...PODCAST_FEEDS];
+
+// ── Render lists ──────────────────────────────────────────────────────────────
+function buildLists() {
+  renderList('podcast-list', PODCAST_FEEDS);
+  renderList('books-list',   LIBRIVOX_BOOKS);
+}
+
+function renderList(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'feed-item';
+    div.id = 'item-' + item.id;
+    div.innerHTML = `
+      <div class="feed-thumb">${item.icon}</div>
+      <div class="feed-meta">
+        <div class="feed-title">${item.title}</div>
+        <div class="feed-sub">${item.author}</div>
+      </div>
+      <span class="feed-dur">${item.type === 'book' ? '📚' : '🎙️'}</span>
+    `;
+    div.onclick = () => playTrack(item);
+    el.appendChild(div);
+  });
+}
+
+// ── Playback ──────────────────────────────────────────────────────────────────
+function playTrack(track) {
+  currentTrack = track;
+
+  // Update artwork & info
+  document.getElementById('artwork-icon').textContent = track.icon;
+  document.getElementById('artwork-img').style.display = 'none';
+  document.getElementById('artwork-icon').style.display = 'block';
+  document.getElementById('track-title').textContent = track.title;
+  document.getElementById('track-sub').textContent = track.author + (track.episode ? ' · ' + track.episode : '');
+
+  // Load audio
+  audio.src = track.stream;
+  audio.play().catch(e => console.warn('Autoplay blocked:', e));
+
+  // Update playing highlight in list
+  document.querySelectorAll('.feed-item').forEach(d => d.classList.remove('playing'));
+  const itemEl = document.getElementById('item-' + track.id);
+  if (itemEl) itemEl.classList.add('playing');
+
+  // Switch to player view
+  switchTab('player');
+
+  // Start watch timer
+  startWatchTimer();
+
+  // Schedule daily pick
+  if (!dailyPickDone) setTimeout(triggerDailyPick, 10000);
+
+  updatePlayPauseUI();
+  postToGodot({ type: 'play_start', trackId: track.id, title: track.title, streamUrl: track.stream });
+}
+
+function togglePlay() {
+  if (!currentTrack) { showToast('Pick a track first'); return; }
+  if (audio.paused) {
+    audio.play();
+    startWatchTimer();
+  } else {
+    audio.pause();
+    clearInterval(watchTimer);
+  }
+  updatePlayPauseUI();
+}
+
+function updatePlayPauseUI() {
+  const playing = !audio.paused;
+  document.getElementById('play-icon').style.display  = playing ? 'none' : 'block';
+  document.getElementById('pause-icon').style.display = playing ? 'block' : 'none';
+}
+
+audio.addEventListener('ended', () => {
+  updatePlayPauseUI();
+  addTokens(3, 'finishing an episode');
+  clearInterval(watchTimer);
+});
+
+audio.addEventListener('timeupdate', updateSeek);
+
+function skip(seconds) {
+  if (!currentTrack) return;
+  audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, audio.duration || 0));
+}
+
+// ── Seek bar ──────────────────────────────────────────────────────────────────
+let seeking = false;
+
+function updateSeek() {
+  if (seeking || !audio.duration) return;
+  const pct = (audio.currentTime / audio.duration) * 100;
+  document.getElementById('seek-fill').style.width  = pct + '%';
+  document.getElementById('seek-thumb').style.left  = pct + '%';
+  document.getElementById('t-current').textContent  = fmtTime(audio.currentTime);
+  document.getElementById('t-total').textContent    = fmtTime(audio.duration);
+}
+
+function seekStart(e) {
+  seeking = true;
+  seekMove(e);
+  window.addEventListener('mousemove', seekMove);
+  window.addEventListener('mouseup', seekEnd);
+}
+function seekMove(e) {
+  const track = document.getElementById('seek-track');
+  const rect  = track.getBoundingClientRect();
+  const pct   = Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1));
+  document.getElementById('seek-fill').style.width = (pct * 100) + '%';
+  document.getElementById('seek-thumb').style.left = (pct * 100) + '%';
+  if (audio.duration) audio.currentTime = pct * audio.duration;
+}
+function seekEnd() {
+  seeking = false;
+  window.removeEventListener('mousemove', seekMove);
+  window.removeEventListener('mouseup', seekEnd);
+}
+function seekTouchStart(e) {
+  seeking = true;
+  const touch = e.touches[0];
+  seekMoveTouch(touch);
+  window.addEventListener('touchmove', seekTouchMove, { passive: true });
+  window.addEventListener('touchend',  seekTouchEnd);
+}
+function seekTouchMove(e) { seekMoveTouch(e.touches[0]); }
+function seekMoveTouch(touch) {
+  const track = document.getElementById('seek-track');
+  const rect  = track.getBoundingClientRect();
+  const pct   = Math.max(0, Math.min((touch.clientX - rect.left) / rect.width, 1));
+  document.getElementById('seek-fill').style.width = (pct * 100) + '%';
+  document.getElementById('seek-thumb').style.left = (pct * 100) + '%';
+  if (audio.duration) audio.currentTime = pct * audio.duration;
+}
+function seekTouchEnd() {
+  seeking = false;
+  window.removeEventListener('touchmove', seekTouchMove);
+  window.removeEventListener('touchend',  seekTouchEnd);
+}
+
+// ── Finish & pick next ────────────────────────────────────────────────────────
+function finishAndPickNext() {
+  if (!currentTrack) { showToast('Nothing playing yet'); return; }
+  audio.pause();
+  clearInterval(watchTimer);
+  updatePlayPauseUI();
+  postToGodot({ type: 'finished_listening', trackId: currentTrack.id, title: currentTrack.title, streamUrl: currentTrack.stream, lastTimestamp: Math.round(audio.currentTime || 0) });
+  showToast('Saved. Pick your next listen below.');
+  switchTab(currentTrack.type === 'book' ? 'books' : 'podcasts');
+}
+
+// ── Stamp ─────────────────────────────────────────────────────────────────────
+function stampMoment() {
+  if (!currentTrack) { showToast('Nothing playing yet'); return; }
+  const ts = Math.round(audio.currentTime || 0);
+  sessionStamps.push({ trackId: currentTrack.id, streamUrl: currentTrack.stream, timestamp: ts });
+  addTokens(2, 'stamping a best moment');
+  showToast('⭐ Stamped at ' + fmtTime(ts));
+  postToGodot({ type: 'stamp', trackId: currentTrack.id, title: currentTrack.title, streamUrl: currentTrack.stream, timestamp: ts, stamps: sessionStamps });
+
+  // visual pulse on stamp button
+  const btn = document.getElementById('stamp-btn');
+  btn.style.background = 'rgba(255,215,0,0.3)';
+  setTimeout(() => btn.style.background = '', 400);
+}
+
+// ── Watch timer (earn tokens per minute listened) ─────────────────────────────
+function startWatchTimer() {
+  clearInterval(watchTimer);
+  watchTimer = setInterval(() => {
+    if (!audio.paused) {
+      watchedSeconds += 5;
+      if (watchedSeconds % 60 === 0) {
+        addTokens(1, 'listening for a minute');
+      }
+    }
+  }, 5000);
+}
+
+// ── Daily pick ────────────────────────────────────────────────────────────────
+function triggerDailyPick() {
+  if (dailyPickDone) return;
+  dailyPickDone = true;
+  const pool = ALL_TRACKS.slice(0, 3);
+  const container = document.getElementById('pick-options');
+  container.innerHTML = '';
+  pool.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'pick-option';
+    div.innerHTML = `<span class="pick-icon">${t.icon}</span><span class="pick-label">${t.title.slice(0,20)}</span>`;
+    div.onclick = () => choosePick(div, t, pool);
+    container.appendChild(div);
+  });
+  document.getElementById('daily-pick').classList.add('open');
+}
+
+function choosePick(el, chosen, all) {
+  if (el.classList.contains('chosen')) return;
+  document.querySelectorAll('.pick-option').forEach(d => d.classList.remove('chosen'));
+  el.classList.add('chosen');
+  sessionPicks.push({ chosen: chosen.id, options: all.map(o => o.id) });
+  addTokens(1, 'daily pick vote');
+  postToGodot({ type: 'daily_pick', chosen: chosen.id, options: all.map(o => o.id) });
+  setTimeout(closeDailyPick, 1200);
+}
+
+function closeDailyPick() {
+  document.getElementById('daily-pick').classList.remove('open');
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  currentView = name;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['player','podcasts','books'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const target = document.getElementById('view-' + name);
+  if (target) target.classList.add('active');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  s = Math.floor(s);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2,'0');
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function addTokens(n, reason) {
+  tokenBalance += n;
+  const badge = document.getElementById('token-badge');
+  badge.textContent = tokenBalance + ' token' + (tokenBalance !== 1 ? 's' : '');
+  badge.classList.add('bump');
+  setTimeout(() => badge.classList.remove('bump'), 300);
+  showToast('+' + n + ' token' + (n !== 1 ? 's' : '') + ' — ' + reason);
+  postToGodot({ type: 'tokens', delta: n, total: tokenBalance, reason });
+}
+
+function postToGodot(data) {
+  try {
+    if (window.JavaScriptBridge) {
+      window.JavaScriptBridge.call('receive_audio_data', JSON.stringify(data));
+    }
+  } catch(e) {}
+  console.log('[Godot bridge]', JSON.stringify(data));
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildLists();
+</script>
+</body>
+</html>
