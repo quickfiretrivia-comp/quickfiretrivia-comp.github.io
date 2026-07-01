@@ -570,13 +570,18 @@ function resumePlayback() {
 }
  
 // ── Watch timer (earn tokens per minute listened) ─────────────────────────────
+// ── Modified Audio Tracking Segment ──
 function startWatchTimer() {
   clearInterval(watchTimer);
+  let activeSeconds = 0;
+  
   watchTimer = setInterval(() => {
-    if (!audio.paused) {
-      watchedSeconds += 5;
-      if (watchedSeconds % 60 === 0) {
+    // Only increment and award points if the track is actually actively playing
+    if (audio && !audio.paused && currentTrack) {
+      activeSeconds += 5;
+      if (activeSeconds >= 60) {
         addTokens(1, 'listening for a minute');
+        activeSeconds = 0; // Clear incremental tracking balance
       }
     }
   }, 5000);
