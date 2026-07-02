@@ -515,14 +515,6 @@ function activateSlide(index) {
   });
   resetReactionBar();
   currentIndex = index;
-
-  // Award watch token after watching more than 5 seconds total per video
-  setTimeout(() => {
-    const active = document.querySelectorAll('.slide')[currentIndex];
-    if (active && active.classList.contains('active')) {
-      addTokens(1, 'watching a video');
-    }
-  }, 5000);
 }
 
 // ── Progress ──────────────────────────────────────────────────────────────────
@@ -547,20 +539,6 @@ function onTimeUpdate(e) {}
 // ── Navigation ────────────────────────────────────────────────────────────────
 function nextSlide() {
   if (currentIndex >= slides.length - 1) return;
-
-  if (adBreakThresholdReached) {
-    // Advance to the new slide first (it will auto-play via activateSlide)
-    // then immediately pause it before requesting the ad
-    activateSlide(currentIndex + 1);
-    const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-    const vid = activeSlide?.querySelector('video');
-    if (vid) {
-      vid.pause();
-      clearInterval(progressTimer);
-    }
-    triggerVideoAdBreak();
-    return;
-  }
 
   activateSlide(currentIndex + 1);
 }
