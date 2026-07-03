@@ -249,9 +249,40 @@
 </div>
 
 <script>
-// ── CONFIG — replace keys with your own ──────────────────────────────────────
-const PEXELS_API_KEY = 'YOUR_PEXELS_API_KEY';
-const PEXELS_QUERIES = ['nature', 'city timelapse', 'ocean', 'wildlife', 'space'];
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_DATA_API_V3_KEY'; // paste your key here
+
+// 20 category queries — rotated randomly on each load
+const YT_QUERIES = [
+  'funny animals compilation',
+  'funny videos trending',
+  'quick recipe viral',
+  'restaurant review short',
+  'trick shots highlights',
+  'extreme sports best moments',
+  'satisfying DIY restoration',
+  'family parenting funny moments',
+  'movie recap trending',
+  'tv show edit trending',
+  'pet rescue heartwarming',
+  'funny pet moments',
+  'tech gadget review short',
+  'educational facts quick',
+  'personal finance tips short',
+  'AI tutorial short',
+  'travel hidden gem',
+  'makeup transformation quick',
+  'fitness workout short',
+  'ASMR satisfying videos'
+];
+
+const DM_QUERIES = [
+  'funny animals',
+  'satisfying videos',
+  'food recipe short',
+  'travel destinations',
+  'fitness transformation'
+];
 
 // ── State ────────────────────────────────────────────────────────────────────
 let tokenBalance = 0;
@@ -268,6 +299,8 @@ let videoAdSeconds          = 0;
 let adBreakThresholdReached = false;
 let videoAdActive           = false;
 let videoAdTimerInterval    = null;
+let videoTokenTimer         = null; // minute-based watch timer
+let slideIsActive           = false; // used by ad timer for iframe-compatible tracking
 
  
 // Demo video pool (used as fallback + supplement when Pexels key is absent)
@@ -298,60 +331,49 @@ const DEMO_VIDEOS = [
 let isGlobalMuted = true; // Match standard browser autoplay constraint variables
 
 function toggleGlobalVideoMute(event) {
-  if(event) event.stopPropagation();
+  if (event) event.stopPropagation();
   isGlobalMuted = !isGlobalMuted;
-  
-  const icon = document.getElementById("mute-toggle-overlay");
-  if(icon) icon.textContent = isGlobalMuted ? "🔇" : "🔊";
 
-  // Instantly apply setting change parameters into the actively focused background video
+  const icon = document.getElementById('mute-toggle-overlay');
+  if (icon) icon.textContent = isGlobalMuted ? '🔇' : '🔊';
+
   const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-  const currentVid = activeSlide?.querySelector('video');
-  if (currentVid) {
-    currentVid.muted = isGlobalMuted;
+  const type = slides[currentIndex]?.type;
+
+  if (type === 'demo') {
+    const vid = activeSlide?.querySelector('video');
+    if (vid) vid.muted = isGlobalMuted;
+  } else {
+    // For iframes: re-inject with updated mute parameter
+    _injectIframe(activeSlide, slides[currentIndex]);
   }
 }
 
-// Modify your existing buildFeed loop initialization so that new slides check this global setting:
-// Inside buildFeed() loop:
-// const vid = document.createElement('video');
-// vid.muted = isGlobalMuted; // Sync configuration states dynamically instead of hardcoding to true
+
 
 // ── Modified Video Clock Watcher Routine ──
 function startVideoTokenTimer() {
   clearInterval(videoTokenTimer);
-  let elapsedVideoSeconds = 0;
-
+  let elapsedSeconds = 0;
   videoTokenTimer = setInterval(() => {
-    const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-    const currentVid = activeSlide?.querySelector('video');
-
-    // Ensure the video element exists and is active before granting points
-    if (currentVid && !currentVid.paused && activeSlide.classList.contains('active')) {
-      elapsedVideoSeconds += 5;
-      if (elapsedVideoSeconds >= 60) {
-        addTokens(1, 'watching a video');
-        elapsedVideoSeconds = 0; // Reset individual tracking buffer
-      }
+    if (!slideIsActive || videoAdActive) return;
+    elapsedSeconds += 5;
+    if (elapsedSeconds >= 60) {
+      addTokens(1, 'watching a video');
+      elapsedSeconds = 0;
     }
   }, 5000);
 }
-
-// Ensure you call startVideoTokenTimer() inside your video loading lifecycle hooks 
-// (such as whenever activateSlide() changes index metrics).
  
 function startVideoAdTimer() {
   if (videoAdTimerInterval) return;
   videoAdTimerInterval = setInterval(() => {
-    if (videoAdActive) return; // don't count during an active ad
-    const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-    const vid = activeSlide?.querySelector('video');
-    if (vid && !vid.paused) {
-      videoAdSeconds++;
-      if (videoAdSeconds >= 180) {
-        adBreakThresholdReached = true;
-        videoAdSeconds = 0; // reset so we don't fire again immediately after resume
-      }
+    if (videoAdActive) return;
+    if (!slideIsActive) return; // only count when a slide is actually displaying
+    videoAdSeconds++;
+    if (videoAdSeconds >= 180) {
+      adBreakThresholdReached = true;
+      videoAdSeconds = 0;
     }
   }, 1000);
 }
@@ -364,16 +386,25 @@ function triggerVideoAdBreak() {
 }
 
 // Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
+// Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
 function resumePlayback() {
   videoAdActive = false;
+  slideIsActive = true;
   const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-  const vid = activeSlide?.querySelector('video');
-  if (vid) {
-    vid.play().catch(() => {});
-    startProgress(vid);
-    showCenterIcon('▶');
+  const type = slides[currentIndex]?.type;
+
+  if (type === 'demo') {
+    const vid = activeSlide?.querySelector('video');
+    if (vid) {
+      vid.play().catch(() => {});
+      startProgress(vid);
+    }
+  } else {
+    // For iframe types: re-inject the iframe with autoplay to resume
+    _injectIframe(activeSlide, slides[currentIndex]);
   }
-  startVideoAdTimer(); // restart the 3-minute clock
+  showCenterIcon('▶');
+  startVideoAdTimer();
 }
  
 // ── Token helpers ─────────────────────────────────────────────────────────────
@@ -410,31 +441,88 @@ function showToast(msg) {
 // ── Build slides ──────────────────────────────────────────────────────────────
 async function loadVideos() {
   let videos = [];
-  if (PEXELS_API_KEY && PEXELS_API_KEY !== 'YOUR_PEXELS_API_KEY') {
+
+  // ── YouTube ──────────────────────────────────────────────────────────────
+  if (YOUTUBE_API_KEY && YOUTUBE_API_KEY !== 'YOUR_YOUTUBE_DATA_API_V3_KEY') {
     try {
-      const query = PEXELS_QUERIES[Math.floor(Math.random() * PEXELS_QUERIES.length)];
-      const res = await fetch(`https://api.pexels.com/videos/search?query=${query}&per_page=6&orientation=portrait`, {
-        headers: { Authorization: PEXELS_API_KEY }
-      });
+      const query = YT_QUERIES[Math.floor(Math.random() * YT_QUERIES.length)];
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoDuration=short&q=${encodeURIComponent(query)}&maxResults=5&key=${YOUTUBE_API_KEY}`
+      );
       const data = await res.json();
-      videos = (data.videos || []).map(v => ({
-        id: 'pexels_' + v.id,                                  // internal id — Godot only
-        videoUrl: v.video_files.find(f => f.quality === 'hd' || f.quality === 'sd')?.link || v.video_files[0].link,
-        displayName: (v.url.split('/').filter(Boolean).pop() || 'video')
-          .replace(/-\d+$/, '')        // strip trailing numeric id
-          .replace(/-/g, ' ')          // dashes to spaces
-          .replace(/\b\w/g, c => c.toUpperCase()), // title case
-        caption: 'Watch and react to earn tokens',
-        thumbnail: v.image
-      }));
-    } catch(e) { console.warn('Pexels fetch failed, using demo videos'); }
+      if (data.items) {
+        data.items.forEach(item => {
+          videos.push({
+            id: 'yt_' + item.id.videoId,        // internal — Godot only
+            type: 'youtube',
+            youtubeId: item.id.videoId,
+            displayName: item.snippet.channelTitle,
+            caption: item.snippet.title,
+            category: query
+          });
+        });
+      }
+    } catch(e) { console.warn('YouTube fetch failed:', e); }
   }
-  // Always append demo videos as fallback/padding
+
+  // ── Dailymotion ───────────────────────────────────────────────────────────
+  try {
+    const dmQuery = DM_QUERIES[Math.floor(Math.random() * DM_QUERIES.length)];
+    const res = await fetch(
+      `https://api.dailymotion.com/videos?fields=id,title,owner.screenname&search=${encodeURIComponent(dmQuery)}&flags=vertical&limit=5&language=en`
+    );
+    const data = await res.json();
+    if (data.list) {
+      data.list.forEach(v => {
+        videos.push({
+          id: 'dm_' + v.id,                     // internal — Godot only
+          type: 'dailymotion',
+          dailymotionId: v.id,
+          displayName: v['owner.screenname'] || 'Creator',
+          caption: v.title,
+          category: dmQuery
+        });
+      });
+    }
+  } catch(e) { console.warn('Dailymotion fetch failed:', e); }
+
+  // ── Demo fallback ─────────────────────────────────────────────────────────
+  // Always included so the feed never shows empty
   videos = [...videos, ...DEMO_VIDEOS];
-  slides = videos;
+
+  // Shuffle to mix sources
+  slides = videos.sort(() => Math.random() - 0.5);
   buildFeed();
 }
 
+ // ── Iframe injection helper ───────────────────────────────────────────────────
+// Creates and injects an iframe for YouTube or Dailymotion into a slide.
+// Called both during initial buildFeed and when resuming after an ad break.
+function _injectIframe(slideEl, videoMeta) {
+  // Remove any existing iframe in this slide
+  const old = slideEl.querySelector('iframe');
+  if (old) old.remove();
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('allow', 'autoplay; fullscreen');
+
+  if (videoMeta.type === 'youtube') {
+    iframe.src = `https://www.youtube.com/embed/${videoMeta.youtubeId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoMeta.youtubeId}&mute=${isGlobalMuted ? 1 : 0}`;
+  } else if (videoMeta.type === 'dailymotion') {
+    iframe.src = `https://geo.dailymotion.com/player.html?video=${videoMeta.dailymotionId}&autoplay=true&mute=${isGlobalMuted}&controls=false&ui-start-screen-info=false&loop=true`;
+  }
+
+  // Insert before the overlay divs so overlays sit on top
+  const firstOverlay = slideEl.querySelector('.overlay-top');
+  if (firstOverlay) {
+    slideEl.insertBefore(iframe, firstOverlay);
+  } else {
+    slideEl.appendChild(iframe);
+  }
+}
+ 
 function buildFeed() {
   const feed = document.getElementById('feed');
   feed.innerHTML = '';
@@ -445,18 +533,24 @@ function buildFeed() {
     slide.dataset.index = i;
 
     // Video element
-    const vid = document.createElement('video');
-    vid.src = v.videoUrl;
-    vid.loop = true;
-    vid.muted = true;
-    vid.playsInline = true;
-    vid.preload = 'metadata';
-    vid.setAttribute('playsinline', '');
-    vid.addEventListener('timeupdate', onTimeUpdate);
-    vid.addEventListener('loadedmetadata', () => {
-      if (i === currentIndex) startProgress(vid);
-    });
-    slide.appendChild(vid);
+    // Media element — native video for demo, iframe for YouTube/Dailymotion
+    if (v.type === 'demo') {
+      const vid = document.createElement('video');
+      vid.src = v.videoUrl;
+      vid.loop = true;
+      vid.muted = isGlobalMuted;
+      vid.playsInline = true;
+      vid.preload = 'metadata';
+      vid.setAttribute('playsinline', '');
+      vid.addEventListener('timeupdate', onTimeUpdate);
+      vid.addEventListener('loadedmetadata', () => {
+        if (i === currentIndex) startProgress(vid);
+      });
+      slide.appendChild(vid);
+    }
+    // YouTube and Dailymotion iframes are injected by activateSlide()
+    // when the slide becomes active — not pre-loaded for all slides —
+    // to avoid simultaneous iframe load for every video in the feed.
 
     // Overlays
     const ot = document.createElement('div'); ot.className = 'overlay-top';
@@ -498,25 +592,47 @@ function buildFeed() {
 
 function activateSlide(index) {
   const allSlides = document.querySelectorAll('.slide');
+  slideIsActive = false; // pause ad counting while transitioning
+
   allSlides.forEach((s, i) => {
+    const wasActive = s.classList.contains('active');
     s.classList.toggle('active', i === index);
-    const vid = s.querySelector('video');
-    if (vid) {
-      if (i === index) {
-        vid.play().catch(() => {});
-        resetProgress();
-        startProgress(vid);
-        videoStartTime = Date.now();
+
+    if (i === index) {
+      // Activate this slide
+      const meta = slides[i];
+      if (meta.type === 'demo') {
+        const vid = s.querySelector('video');
+        if (vid) {
+          vid.muted = isGlobalMuted;
+          vid.play().catch(() => {});
+          resetProgress();
+          startProgress(vid);
+        }
       } else {
-        vid.pause();
-        vid.currentTime = 0;
+        // Inject iframe — this is how we start playback for YT/DM
+        _injectIframe(s, meta);
+        resetProgress();
+        // Progress bar animates as a fake fill for iframe videos since we
+        // cannot read currentTime cross-origin. Simulates engagement.
+        startFakeProgress();
       }
+      videoStartTime = Date.now();
+      slideIsActive = true;
+    } else {
+      // Deactivate this slide
+      const vid = s.querySelector('video');
+      if (vid) { vid.pause(); vid.currentTime = 0; }
+      // Remove iframe to stop playback and free memory
+      const iframe = s.querySelector('iframe');
+      if (iframe) iframe.remove();
     }
   });
+
   resetReactionBar();
   currentIndex = index;
+  startVideoTokenTimer(); // start/restart the 60-second token clock
 }
-
 // ── Progress ──────────────────────────────────────────────────────────────────
 function startProgress(vid) {
   clearInterval(progressTimer);
@@ -534,11 +650,42 @@ function resetProgress() {
   document.getElementById('progress-fill').style.width = '0%';
 }
 
+ // For iframe slides we cannot read currentTime cross-origin.
+// We show a slow-moving fake progress bar instead so the UI doesn't look broken.
+function startFakeProgress() {
+  clearInterval(progressTimer);
+  progressVal = 0;
+  const FAKE_DURATION_MS = 60000; // assume ~60 seconds per clip for the bar
+  const startTime = Date.now();
+  progressTimer = setInterval(() => {
+    progressVal = Math.min(((Date.now() - startTime) / FAKE_DURATION_MS) * 100, 99);
+    document.getElementById('progress-fill').style.width = progressVal + '%';
+  }, 500);
+}
+ 
 function onTimeUpdate(e) {}
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function nextSlide() {
   if (currentIndex >= slides.length - 1) return;
+
+  if (adBreakThresholdReached) {
+    // Move to next slide first (user sees it briefly), then fire ad
+    activateSlide(currentIndex + 1);
+    // For demo type, pause the video element
+    const activeSlide = document.querySelectorAll('.slide')[currentIndex];
+    const vid = activeSlide?.querySelector('video');
+    if (vid) { vid.pause(); clearInterval(progressTimer); }
+    // For iframe types, remove the iframe so content isn't playing under the ad
+    const iframe = activeSlide?.querySelector('iframe');
+    if (iframe) { iframe.remove(); clearInterval(progressTimer); }
+    slideIsActive = false;
+    triggerVideoAdBreak();
+    return;
+  }
+
+  activateSlide(currentIndex + 1);
+}
 
   activateSlide(currentIndex + 1);
 }
@@ -593,28 +740,40 @@ function setupSwipe(el) {
 // ── Tap-to-pause/resume (TikTok-style) ────────────────────────────────────────
 function toggleTapPause() {
   const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-  const vid = activeSlide?.querySelector('video');
-  if (!vid) return;
+  const type = slides[currentIndex]?.type;
 
-  if (vid.paused) {
-    // Resuming — only play if no ad is currently active
-    if (!videoAdActive) {
-      vid.play().catch(() => {});
-      startProgress(vid);
-      showCenterIcon('▶');
+  if (type === 'demo') {
+    const vid = activeSlide?.querySelector('video');
+    if (!vid) return;
+
+    if (vid.paused) {
+      if (!videoAdActive) {
+        vid.play().catch(() => {});
+        startProgress(vid);
+        showCenterIcon('▶');
+        slideIsActive = true;
+      }
+    } else {
+      vid.pause();
+      clearInterval(progressTimer);
+      showCenterIcon('⏸');
+      slideIsActive = false;
+      if (adBreakThresholdReached) triggerVideoAdBreak();
     }
   } else {
-    // Pausing
-    vid.pause();
-    clearInterval(progressTimer);
-    showCenterIcon('⏸');
-    // If 3 minutes have elapsed, this pause is the trigger moment
+    // For iframe slides: we cannot control play/pause cross-origin without
+    // the YouTube IFrame API JS library (which we are not loading to keep
+    // things simple). A tap on the video surface goes to the iframe natively
+    // and YT/DM handles pause/play internally. We use the tap to check the
+    // ad threshold only.
     if (adBreakThresholdReached) {
+      slideIsActive = false;
+      const iframe = activeSlide?.querySelector('iframe');
+      if (iframe) iframe.remove();
       triggerVideoAdBreak();
     }
   }
 }
-
 function showCenterIcon(symbol) {
   let icon = document.getElementById('center-pause-icon');
   if (!icon) {
