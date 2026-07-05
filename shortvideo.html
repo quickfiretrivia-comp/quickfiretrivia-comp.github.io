@@ -40,7 +40,7 @@
     opacity: 1; pointer-events: all;
   }
 
-  /* Pexels background video */
+  /* background video / iframe */
   .slide video, .slide iframe {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
@@ -96,6 +96,7 @@
   }
   .action-circle:active { transform: scale(0.9); }
   .action span { color: #fff; font-size: 11px; text-align: center; }
+
   /* ── Progress bar ── */
   #progress-wrap {
     position: fixed; bottom: 94px; left: 0; right: 0; z-index: 20;
@@ -196,10 +197,10 @@
 
 <div id="toast"></div>
 
- <div id="mute-toggle-overlay" onclick="toggleGlobalVideoMute(event)" style="position: fixed; bottom: 160px; right: 16px; z-index: 25; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer;">
+<div id="mute-toggle-overlay" onclick="toggleGlobalVideoMute(event)" style="position: fixed; bottom: 160px; right: 16px; z-index: 25; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer;">
   🔊
 </div>
- 
+
 <!-- Top navigation bar -->
 <div id="top-bar">
   <div id="token-badge">0 tokens</div>
@@ -250,9 +251,14 @@
 
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
+// Set TEST_MODE = true during development to skip all API calls and use only
+// the 5 local test videos below. Zero quota is consumed in test mode.
+// Set to false when you are ready to test with real YouTube / Dailymotion content.
+const TEST_MODE = true;
+
 const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_DATA_API_V3_KEY'; // paste your key here
 
-// category queries — rotated randomly on each load
+// 35 category queries — one picked at random on each load
 const YT_QUERIES = [
   'funny animals compilation',
   'funny videos trending',
@@ -315,20 +321,24 @@ let adBreakThresholdReached = false;
 let videoAdActive           = false;
 let videoAdTimerInterval    = null;
 let videoTokenTimer         = null; // minute-based watch timer
-let slideIsActive           = false; // used by ad timer for iframe-compatible tracking
+let slideIsActive           = false; // iframe-compatible play-state flag for timers
 
- 
-// Demo video pool (used as fallback + supplement when Pexels key is absent)
+// ── Test / demo video pool ────────────────────────────────────────────────────
+// These 5 videos are always used in TEST_MODE and always appended as fallback
+// in live mode so the feed never appears empty if API calls fail.
+// type:'demo' is required — activateSlide() uses it to pick the right player.
 const DEMO_VIDEOS = [
   {
-    id: 'demo_001',                  // internal id — sent to Godot, never shown
+    id: 'demo_001',
+    type: 'demo',
     videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
-    displayName: 'Forest Stream Loop',  // shown on screen
+    displayName: 'Forest Stream Loop',
     caption: 'Watch this and react below to earn tokens #explore',
     thumbnail: ''
   },
   {
     id: 'demo_002',
+    type: 'demo',
     videoUrl: 'https://www.w3schools.com/html/movie.mp4',
     displayName: 'City Night Drive',
     caption: 'How are you feeling today? React and earn #mood',
@@ -336,15 +346,33 @@ const DEMO_VIDEOS = [
   },
   {
     id: 'demo_003',
+    type: 'demo',
     videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
     displayName: 'Sunset Timelapse',
     caption: 'Would you share this? See the daily pick below!',
     thumbnail: ''
+  },
+  {
+    id: 'demo_004',
+    type: 'demo',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    displayName: 'Big Buck Bunny',
+    caption: 'Classic animated short — react and earn! #animation',
+    thumbnail: ''
+  },
+  {
+    id: 'demo_005',
+    type: 'demo',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    displayName: 'Elephants Dream',
+    caption: 'Open source animation — stamp your favourite moment!',
+    thumbnail: ''
   }
 ];
 
-let isGlobalMuted = true; // Match standard browser autoplay constraint variables
+let isGlobalMuted = true;
 
+// ── Mute toggle ───────────────────────────────────────────────────────────────
 function toggleGlobalVideoMute(event) {
   if (event) event.stopPropagation();
   isGlobalMuted = !isGlobalMuted;
@@ -359,14 +387,14 @@ function toggleGlobalVideoMute(event) {
     const vid = activeSlide?.querySelector('video');
     if (vid) vid.muted = isGlobalMuted;
   } else {
-    // For iframes: re-inject with updated mute parameter
+    // Re-inject iframe with updated mute param — only way to change mute cross-origin
     _injectIframe(activeSlide, slides[currentIndex]);
   }
 }
 
-
-
-// ── Modified Video Clock Watcher Routine ──
+// ── Video token timer ─────────────────────────────────────────────────────────
+// Awards +1 token per 60 seconds of active watching.
+// Uses slideIsActive so it works for both native video and iframe sources.
 function startVideoTokenTimer() {
   clearInterval(videoTokenTimer);
   let elapsedSeconds = 0;
@@ -379,12 +407,15 @@ function startVideoTokenTimer() {
     }
   }, 5000);
 }
- 
+
+// ── Ad-break timer ────────────────────────────────────────────────────────────
+// Counts accumulated seconds using the slideIsActive flag so it works for both
+// native video (demo) and iframe (YouTube / Dailymotion) slides.
 function startVideoAdTimer() {
   if (videoAdTimerInterval) return;
   videoAdTimerInterval = setInterval(() => {
     if (videoAdActive) return;
-    if (!slideIsActive) return; // only count when a slide is actually displaying
+    if (!slideIsActive) return;
     videoAdSeconds++;
     if (videoAdSeconds >= 180) {
       adBreakThresholdReached = true;
@@ -393,15 +424,16 @@ function startVideoAdTimer() {
   }, 1000);
 }
 
-// Called by the page when conditions are met (pause or swipe).
+// Called when conditions are met (user pauses or swipes after 3 min).
 function triggerVideoAdBreak() {
   videoAdActive = true;
   adBreakThresholdReached = false;
+  slideIsActive = false;
   postToGodot({ type: 'show_interstitial' });
 }
 
 // Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
-// Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
+// The WebView was never destroyed — all JS state, variables, and timers survived.
 function resumePlayback() {
   videoAdActive = false;
   slideIsActive = true;
@@ -415,13 +447,14 @@ function resumePlayback() {
       startProgress(vid);
     }
   } else {
-    // For iframe types: re-inject the iframe with autoplay to resume
+    // Re-inject iframe with autoplay to resume YouTube / Dailymotion
     _injectIframe(activeSlide, slides[currentIndex]);
+    startFakeProgress();
   }
   showCenterIcon('▶');
   startVideoAdTimer();
 }
- 
+
 // ── Token helpers ─────────────────────────────────────────────────────────────
 function addTokens(n, label) {
   tokenBalance += n;
@@ -434,7 +467,6 @@ function addTokens(n, label) {
 }
 
 function postToGodot(data) {
-  // Bridge to Godot via URL scheme if available
   try {
     if (window.JavaScriptBridge) {
       window.JavaScriptBridge.call('receive_video_data', JSON.stringify(data));
@@ -453,9 +485,46 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-// ── Build slides ──────────────────────────────────────────────────────────────
+// ── Iframe injection helper ───────────────────────────────────────────────────
+// Creates and injects an iframe for YouTube or Dailymotion into a slide.
+// Called by activateSlide() and by resumePlayback() after an ad closes.
+// Removes any existing iframe first to avoid duplicates.
+function _injectIframe(slideEl, videoMeta) {
+  const old = slideEl.querySelector('iframe');
+  if (old) old.remove();
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('allow', 'autoplay; fullscreen');
+
+  if (videoMeta.type === 'youtube') {
+    iframe.src = `https://www.youtube.com/embed/${videoMeta.youtubeId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoMeta.youtubeId}&mute=${isGlobalMuted ? 1 : 0}`;
+  } else if (videoMeta.type === 'dailymotion') {
+    iframe.src = `https://geo.dailymotion.com/player.html?video=${videoMeta.dailymotionId}&autoplay=true&mute=${isGlobalMuted}&controls=false&ui-start-screen-info=false&loop=true`;
+  }
+
+  // Insert before the overlay divs so overlays and all UI sit on top
+  const firstOverlay = slideEl.querySelector('.overlay-top');
+  if (firstOverlay) {
+    slideEl.insertBefore(iframe, firstOverlay);
+  } else {
+    slideEl.appendChild(iframe);
+  }
+}
+
+// ── Video loader ──────────────────────────────────────────────────────────────
 async function loadVideos() {
   let videos = [];
+
+  if (TEST_MODE) {
+    // In test mode: skip all API calls, use only demo videos.
+    // No YouTube quota is consumed. Safe for all development sessions.
+    console.log('[TEST_MODE] Skipping API calls. Using demo videos only.');
+    slides = [...DEMO_VIDEOS];
+    buildFeed();
+    return;
+  }
 
   // ── YouTube ──────────────────────────────────────────────────────────────
   if (YOUTUBE_API_KEY && YOUTUBE_API_KEY !== 'YOUR_YOUTUBE_DATA_API_V3_KEY') {
@@ -468,7 +537,7 @@ async function loadVideos() {
       if (data.items) {
         data.items.forEach(item => {
           videos.push({
-            id: 'yt_' + item.id.videoId,        // internal — Godot only
+            id: 'yt_' + item.id.videoId,      // internal id — sent to Godot, never shown
             type: 'youtube',
             youtubeId: item.id.videoId,
             displayName: item.snippet.channelTitle,
@@ -490,7 +559,7 @@ async function loadVideos() {
     if (data.list) {
       data.list.forEach(v => {
         videos.push({
-          id: 'dm_' + v.id,                     // internal — Godot only
+          id: 'dm_' + v.id,                   // internal id — sent to Godot, never shown
           type: 'dailymotion',
           dailymotionId: v.id,
           displayName: v['owner.screenname'] || 'Creator',
@@ -501,43 +570,15 @@ async function loadVideos() {
     }
   } catch(e) { console.warn('Dailymotion fetch failed:', e); }
 
-  // ── Demo fallback ─────────────────────────────────────────────────────────
-  // Always included so the feed never shows empty
+  // Demo videos always appended so feed is never empty if APIs fail
   videos = [...videos, ...DEMO_VIDEOS];
 
-  // Shuffle to mix sources
+  // Shuffle to mix YouTube, Dailymotion, and demo clips together
   slides = videos.sort(() => Math.random() - 0.5);
   buildFeed();
 }
 
- // ── Iframe injection helper ───────────────────────────────────────────────────
-// Creates and injects an iframe for YouTube or Dailymotion into a slide.
-// Called both during initial buildFeed and when resuming after an ad break.
-function _injectIframe(slideEl, videoMeta) {
-  // Remove any existing iframe in this slide
-  const old = slideEl.querySelector('iframe');
-  if (old) old.remove();
-
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
-  iframe.setAttribute('allowfullscreen', '');
-  iframe.setAttribute('allow', 'autoplay; fullscreen');
-
-  if (videoMeta.type === 'youtube') {
-    iframe.src = `https://www.youtube.com/embed/${videoMeta.youtubeId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoMeta.youtubeId}&mute=${isGlobalMuted ? 1 : 0}`;
-  } else if (videoMeta.type === 'dailymotion') {
-    iframe.src = `https://geo.dailymotion.com/player.html?video=${videoMeta.dailymotionId}&autoplay=true&mute=${isGlobalMuted}&controls=false&ui-start-screen-info=false&loop=true`;
-  }
-
-  // Insert before the overlay divs so overlays sit on top
-  const firstOverlay = slideEl.querySelector('.overlay-top');
-  if (firstOverlay) {
-    slideEl.insertBefore(iframe, firstOverlay);
-  } else {
-    slideEl.appendChild(iframe);
-  }
-}
- 
+// ── Build feed ────────────────────────────────────────────────────────────────
 function buildFeed() {
   const feed = document.getElementById('feed');
   feed.innerHTML = '';
@@ -547,8 +588,10 @@ function buildFeed() {
     slide.dataset.id = v.id;
     slide.dataset.index = i;
 
-    // Video element
-    // Media element — native video for demo, iframe for YouTube/Dailymotion
+    // For demo videos: create the <video> element immediately.
+    // For YouTube / Dailymotion: the iframe is injected by activateSlide()
+    // only when this slide becomes active, preventing simultaneous load of
+    // all iframes at once.
     if (v.type === 'demo') {
       const vid = document.createElement('video');
       vid.src = v.videoUrl;
@@ -563,9 +606,6 @@ function buildFeed() {
       });
       slide.appendChild(vid);
     }
-    // YouTube and Dailymotion iframes are injected by activateSlide()
-    // when the slide becomes active — not pre-loaded for all slides —
-    // to avoid simultaneous iframe load for every video in the feed.
 
     // Overlays
     const ot = document.createElement('div'); ot.className = 'overlay-top';
@@ -600,21 +640,22 @@ function buildFeed() {
     else if (e.deltaY < -30) prevSlide();
   }, { passive: true });
 
-  // Show daily pick after 8 seconds
+  // Show daily pick panel after 8 seconds
   setTimeout(triggerDailyPick, 8000);
-  startVideoAdTimer(); // begin the 3-minute ad-break accumulation clock
+
+  // Start the 3-minute ad-break accumulation clock
+  startVideoAdTimer();
 }
 
+// ── Activate slide ────────────────────────────────────────────────────────────
 function activateSlide(index) {
   const allSlides = document.querySelectorAll('.slide');
-  slideIsActive = false; // pause ad counting while transitioning
+  slideIsActive = false; // pause timers during transition
 
   allSlides.forEach((s, i) => {
-    const wasActive = s.classList.contains('active');
     s.classList.toggle('active', i === index);
 
     if (i === index) {
-      // Activate this slide
       const meta = slides[i];
       if (meta.type === 'demo') {
         const vid = s.querySelector('video');
@@ -625,17 +666,16 @@ function activateSlide(index) {
           startProgress(vid);
         }
       } else {
-        // Inject iframe — this is how we start playback for YT/DM
+        // Inject iframe to start YouTube / Dailymotion playback
         _injectIframe(s, meta);
         resetProgress();
-        // Progress bar animates as a fake fill for iframe videos since we
-        // cannot read currentTime cross-origin. Simulates engagement.
+        // Fake progress bar — currentTime not readable cross-origin
         startFakeProgress();
       }
       videoStartTime = Date.now();
       slideIsActive = true;
     } else {
-      // Deactivate this slide
+      // Stop native video
       const vid = s.querySelector('video');
       if (vid) { vid.pause(); vid.currentTime = 0; }
       // Remove iframe to stop playback and free memory
@@ -646,8 +686,9 @@ function activateSlide(index) {
 
   resetReactionBar();
   currentIndex = index;
-  startVideoTokenTimer(); // start/restart the 60-second token clock
+  startVideoTokenTimer(); // restart the 60-second token clock for this slide
 }
+
 // ── Progress ──────────────────────────────────────────────────────────────────
 function startProgress(vid) {
   clearInterval(progressTimer);
@@ -660,24 +701,24 @@ function startProgress(vid) {
   }, 500);
 }
 
-function resetProgress() {
-  clearInterval(progressTimer);
-  document.getElementById('progress-fill').style.width = '0%';
-}
-
- // For iframe slides we cannot read currentTime cross-origin.
-// We show a slow-moving fake progress bar instead so the UI doesn't look broken.
+// For iframe slides currentTime is not accessible cross-origin.
+// A slow-moving fake fill keeps the progress bar looking correct.
 function startFakeProgress() {
   clearInterval(progressTimer);
   progressVal = 0;
-  const FAKE_DURATION_MS = 60000; // assume ~60 seconds per clip for the bar
+  const FAKE_DURATION_MS = 60000; // simulate a 60-second clip
   const startTime = Date.now();
   progressTimer = setInterval(() => {
     progressVal = Math.min(((Date.now() - startTime) / FAKE_DURATION_MS) * 100, 99);
     document.getElementById('progress-fill').style.width = progressVal + '%';
   }, 500);
 }
- 
+
+function resetProgress() {
+  clearInterval(progressTimer);
+  document.getElementById('progress-fill').style.width = '0%';
+}
+
 function onTimeUpdate(e) {}
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -685,13 +726,13 @@ function nextSlide() {
   if (currentIndex >= slides.length - 1) return;
 
   if (adBreakThresholdReached) {
-    // Move to next slide first (user sees it briefly), then fire ad
+    // Advance to the new slide first so the user sees it, then fire the ad
     activateSlide(currentIndex + 1);
-    // For demo type, pause the video element
     const activeSlide = document.querySelectorAll('.slide')[currentIndex];
+    // Pause native video if present
     const vid = activeSlide?.querySelector('video');
     if (vid) { vid.pause(); clearInterval(progressTimer); }
-    // For iframe types, remove the iframe so content isn't playing under the ad
+    // Remove iframe if present
     const iframe = activeSlide?.querySelector('iframe');
     if (iframe) { iframe.remove(); clearInterval(progressTimer); }
     slideIsActive = false;
@@ -702,8 +743,6 @@ function nextSlide() {
   activateSlide(currentIndex + 1);
 }
 
-  activateSlide(currentIndex + 1);
-}
 function prevSlide() {
   if (currentIndex > 0) activateSlide(currentIndex - 1);
 }
@@ -762,6 +801,7 @@ function toggleTapPause() {
     if (!vid) return;
 
     if (vid.paused) {
+      // Resume only if no ad is waiting
       if (!videoAdActive) {
         vid.play().catch(() => {});
         startProgress(vid);
@@ -769,26 +809,30 @@ function toggleTapPause() {
         slideIsActive = true;
       }
     } else {
+      // Pause
       vid.pause();
       clearInterval(progressTimer);
       showCenterIcon('⏸');
       slideIsActive = false;
-      if (adBreakThresholdReached) triggerVideoAdBreak();
+      // If 3 minutes have elapsed, this pause is the ad trigger moment
+      if (adBreakThresholdReached) {
+        triggerVideoAdBreak();
+      }
     }
   } else {
-    // For iframe slides: we cannot control play/pause cross-origin without
-    // the YouTube IFrame API JS library (which we are not loading to keep
-    // things simple). A tap on the video surface goes to the iframe natively
-    // and YT/DM handles pause/play internally. We use the tap to check the
-    // ad threshold only.
+    // YouTube / Dailymotion iframes handle tap natively (controls=0 means
+    // no visible UI, but the player still responds to tap internally).
+    // We only intercept the tap to check the ad threshold.
     if (adBreakThresholdReached) {
-      slideIsActive = false;
       const iframe = activeSlide?.querySelector('iframe');
       if (iframe) iframe.remove();
+      clearInterval(progressTimer);
+      slideIsActive = false;
       triggerVideoAdBreak();
     }
   }
 }
+
 function showCenterIcon(symbol) {
   let icon = document.getElementById('center-pause-icon');
   if (!icon) {
@@ -814,7 +858,7 @@ function showCenterIcon(symbol) {
 // ── Reactions ─────────────────────────────────────────────────────────────────
 function react(btn) {
   const emoji = btn.dataset.emoji;
-  if (btn.classList.contains('tapped')) return; // already reacted with this one
+  if (btn.classList.contains('tapped')) return; // once per video per emoji
   btn.classList.add('tapped');
   const countEl = btn.querySelector('.rcount');
   countEl.textContent = parseInt(countEl.textContent) + 1;
@@ -823,7 +867,7 @@ function react(btn) {
   addTokens(1, 'reacting ' + emoji);
   postToGodot({ type: 'reaction', emoji, videoId: slides[currentIndex]?.id, displayName: slides[currentIndex]?.displayName, reactions: sessionReactions });
 
-  // Animate
+  // Float animation
   const clone = btn.querySelector('.emoji').cloneNode(true);
   clone.style.cssText = 'position:fixed;font-size:32px;pointer-events:none;z-index:99;transition:transform 0.8s,opacity 0.8s;';
   const rect = btn.getBoundingClientRect();
@@ -847,7 +891,10 @@ function resetReactionBar() {
 // ── Stamp ─────────────────────────────────────────────────────────────────────
 function stampMoment(slideIndex) {
   const activeSlides = document.querySelectorAll('.slide');
-  const vid = activeSlides[slideIndex]?.querySelector('video');
+  const type = slides[slideIndex]?.type;
+  // For iframe slides currentTime is not accessible cross-origin; ts will be 0.
+  // The videoId still uniquely identifies the clip for your backend.
+  const vid = (type === 'demo') ? activeSlides[slideIndex]?.querySelector('video') : null;
   const ts = vid ? Math.round(vid.currentTime) : 0;
   const videoId = slides[slideIndex]?.id;
   const displayName = slides[slideIndex]?.displayName;
