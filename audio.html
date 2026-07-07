@@ -207,6 +207,62 @@
   /* ── Tabs show/hide ── */
   .view { display: none; }
   .view.active { display: block; }
+
+  /* ── Search bar ── */
+  .search-wrap {
+    padding: 10px 14px 6px;
+    position: sticky; top: 53px; z-index: 25;
+    background: #0d1117;
+  }
+  .search-input-row {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 8px 12px;
+  }
+  .search-input-row input {
+    flex: 1; background: none; border: none; outline: none;
+    color: #fff; font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .search-input-row input::placeholder { color: rgba(255,255,255,0.3); }
+  .search-clear {
+    color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer;
+    line-height: 1; display: none;
+  }
+  .search-clear.visible { display: block; }
+
+  /* ── Category chips ── */
+  .category-scroll {
+    display: flex; gap: 8px; overflow-x: auto; padding: 8px 14px 10px;
+    scrollbar-width: none;
+  }
+  .category-scroll::-webkit-scrollbar { display: none; }
+  .cat-chip {
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px; padding: 5px 14px;
+    font-size: 12px; color: rgba(255,255,255,0.6);
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    touch-action: manipulation;
+  }
+  .cat-chip.active {
+    background: var(--accent-dim);
+    border-color: var(--accent-border);
+    color: #fff;
+  }
+
+  /* ── Loading state ── */
+  .loading-msg {
+    text-align: center; padding: 32px 16px;
+    color: rgba(255,255,255,0.3); font-size: 13px;
+  }
+
+  /* ── Artwork image visible state ── */
+  #artwork img.visible { display: block; }
+  #artwork.has-image span { display: none; }
 </style>
 </head>
 <body>
@@ -289,12 +345,34 @@
 
 <!-- Podcasts view -->
 <div id="view-podcasts" class="view">
-  <div id="feed-list" id="podcast-list"></div>
+  <div class="search-wrap">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="11" cy="11" r="7" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        <path d="M16.5 16.5L21 21" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input id="podcast-search" type="text" placeholder="Search podcasts..." oninput="onPodcastSearch(this.value)">
+      <span class="search-clear" id="podcast-clear" onclick="clearPodcastSearch()">&#x2715;</span>
+    </div>
+  </div>
+  <div class="category-scroll" id="podcast-cats"></div>
+  <div id="podcast-list"></div>
 </div>
 
 <!-- Audiobooks view -->
 <div id="view-books" class="view">
-  <div id="feed-list" id="books-list"></div>
+  <div class="search-wrap">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="11" cy="11" r="7" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        <path d="M16.5 16.5L21 21" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input id="book-search" type="text" placeholder="Search audiobooks..." oninput="onBookSearch(this.value)">
+      <span class="search-clear" id="book-clear" onclick="clearBookSearch()">&#x2715;</span>
+    </div>
+  </div>
+  <div class="category-scroll" id="book-cats"></div>
+  <div id="books-list"></div>
 </div>
 
 <!-- Daily pick panel -->
@@ -319,6 +397,72 @@ let dailyPickDone = false;
 let currentTrack  = null;
 let currentView   = 'player';
 
+// ── Content data stores ───────────────────────────────────────────────────────
+let podcastData = [];          // all loaded podcasts (raw, unfiltered)
+let bookData    = [];          // all loaded audiobooks (raw, unfiltered)
+let activePodcastCategory = 'All';
+let activeBookCategory    = 'All';
+let podcastSearchQuery    = '';
+let bookSearchQuery       = '';
+
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+// Your Cloudflare Worker URL — replace with your actual deployed Worker URL
+const CF_WORKER_URL = 'https://YOUR_WORKER_NAME.YOUR_SUBDOMAIN.workers.dev';
+
+// 15 curated podcast names — these are fetched via your Cloudflare Worker
+// which calls the iTunes Search API and parses the RSS feed server-side.
+// They seed the Podcasts list on load. User can also search for any podcast.
+const SEED_PODCASTS = [
+  { name: 'The Daily',                  category: 'News & Journalism' },
+  { name: 'Huberman Lab',               category: 'Health & Wellness' },
+  { name: 'Crime Junkie',               category: 'True Crime' },
+  { name: 'How I Built This',           category: 'Business & Entrepreneurship' },
+  { name: 'The Tim Ferriss Show',       category: 'Personal Development & Motivation' },
+  { name: 'Stuff You Should Know',      category: 'Education & Learning' },
+  { name: 'Freakonomics Radio',         category: 'Society & Culture' },
+  { name: 'My Favorite Murder',         category: 'True Crime' },
+  { name: 'The Ben Shapiro Show',       category: 'Politics & Current Affairs' },
+  { name: 'Planet Money',               category: 'Finance & Investing' },
+  { name: 'Radiolab',                   category: 'Science & Technology' },
+  { name: 'The Joe Rogan Experience',   category: 'Comedy' },
+  { name: 'Stuff You Missed in History Class', category: 'History' },
+  { name: 'The Bible in a Year',        category: 'Religion & Spirituality' },
+  { name: 'Good Inside with Dr. Becky', category: 'Parenting & Family' }
+];
+
+// 15 audiobook genre queries for the LibriVox API
+const SEED_BOOK_GENRES = [
+  { genre: 'mystery',          category: 'Mystery & Thriller' },
+  { genre: 'adventure',        category: 'Adventure & Action' },
+  { genre: 'historical',       category: 'Historical Fiction' },
+  { genre: 'science fiction',  category: 'Science Fiction' },
+  { genre: 'biography',        category: 'Biography & Memoir' },
+  { genre: 'philosophy',       category: 'Philosophy' },
+  { genre: 'self-help',        category: 'Self-Help & Personal Development' },
+  { genre: 'business',         category: 'Business & Finance' },
+  { genre: 'religion',         category: 'Religion & Spirituality' },
+  { genre: 'fantasy',          category: 'Fantasy' },
+  { genre: 'science',          category: 'Science & Nature' },
+  { genre: 'history',          category: 'History' },
+  { genre: 'short stories',    category: 'Short Stories & Collections' },
+  { genre: 'poetry',           category: 'Poetry & Drama' },
+  { genre: 'general fiction',  category: 'Classic Literature' }
+];
+
+const PODCAST_CATEGORIES = ['All', 'True Crime', 'Business & Entrepreneurship',
+  'Personal Development & Motivation', 'Health & Wellness', 'History',
+  'Science & Technology', 'Sports', 'Comedy', 'Religion & Spirituality',
+  'Politics & Current Affairs', 'Finance & Investing', 'Education & Learning',
+  'Society & Culture', 'News & Journalism', 'Parenting & Family'];
+
+const BOOK_CATEGORIES = ['All', 'Classic Literature', 'Mystery & Thriller',
+  'Adventure & Action', 'Historical Fiction', 'Biography & Memoir',
+  'Science Fiction', 'Philosophy', 'Self-Help & Personal Development',
+  'Business & Finance', 'Religion & Spirituality', 'Fantasy',
+  'Science & Nature', 'History', 'Short Stories & Collections',
+  'Poetry & Drama']; 
+
+ 
 const audio = document.getElementById('audio-el');
 
 // ── LibriVox / Podcast data ───────────────────────────────────────────────────
@@ -342,27 +486,127 @@ const PODCAST_FEEDS = [
     stream: 'https://dts.podtrac.com/redirect.mp3/download.ted.com/talks/KenRobinson_2006.mp3' }
 ];
 
-const ALL_TRACKS = [...LIBRIVOX_BOOKS, ...PODCAST_FEEDS];
+// ALL_TRACKS is mutable — rebuilt after live fetch completes
+let ALL_TRACKS = [...LIBRIVOX_BOOKS, ...PODCAST_FEEDS];
 
-// ── Render lists ──────────────────────────────────────────────────────────────
-function buildLists() {
-  renderList('podcast-list', PODCAST_FEEDS);
-  renderList('books-list',   LIBRIVOX_BOOKS);
+// ── Build lists — fetches live data then renders ───────────────────────────────
+async function buildLists() {
+  // Show loading states immediately while fetching
+  showListLoading('podcast-list', 'Loading podcasts...');
+  showListLoading('books-list', 'Loading audiobooks...');
+
+  // Build category chip rows
+  buildCategoryChips('podcast-cats', PODCAST_CATEGORIES, 'podcast');
+  buildCategoryChips('book-cats',    BOOK_CATEGORIES,    'book');
+
+  // Seed with hardcoded fallback items immediately so list is never blank
+  podcastData = [...PODCAST_FEEDS];
+  bookData    = [...LIBRIVOX_BOOKS];
+  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+  renderFilteredList('books-list',   bookData,    activeBookCategory,    bookSearchQuery);
+
+  // Fetch podcasts via Cloudflare Worker in parallel
+  const podcastPromises = SEED_PODCASTS.map(p => fetchPodcastViaWorker(p.name, p.category));
+  const bookPromises    = SEED_BOOK_GENRES.map(g => fetchLibriVoxGenre(g.genre, g.category));
+
+  const [podcastResults, bookResults] = await Promise.all([
+    Promise.allSettled(podcastPromises),
+    Promise.allSettled(bookPromises)
+  ]);
+
+  // Merge successful results, deduplicate by id
+  const newPodcasts = podcastResults
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value)
+    .flat();
+  const newBooks = bookResults
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value)
+    .flat();
+
+  if (newPodcasts.length > 0) {
+    // Merge with seeds, dedup by id
+    const existingIds = new Set(podcastData.map(p => p.id));
+    newPodcasts.forEach(p => { if (!existingIds.has(p.id)) { podcastData.push(p); existingIds.add(p.id); } });
+  }
+  if (newBooks.length > 0) {
+    const existingIds = new Set(bookData.map(b => b.id));
+    newBooks.forEach(b => { if (!existingIds.has(b.id)) { bookData.push(b); existingIds.add(b.id); } });
+  }
+
+  // Update ALL_TRACKS for daily pick
+  ALL_TRACKS.length = 0;
+  ALL_TRACKS.push(...podcastData, ...bookData);
+
+  // Re-render with full data
+  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+  renderFilteredList('books-list',   bookData,    activeBookCategory,    bookSearchQuery);
 }
 
-function renderList(containerId, items) {
+function showListLoading(containerId, msg) {
+  const el = document.getElementById(containerId);
+  if (el) el.innerHTML = `<div class="loading-msg">${msg}</div>`;
+}
+
+function buildCategoryChips(containerId, categories, type) {
   const el = document.getElementById(containerId);
   if (!el) return;
   el.innerHTML = '';
-  items.forEach(item => {
+  categories.forEach(cat => {
+    const chip = document.createElement('div');
+    chip.className = 'cat-chip' + (cat === 'All' ? ' active' : '');
+    chip.textContent = cat;
+    chip.onclick = () => {
+      if (type === 'podcast') setPodcastCategory(cat);
+      else setBookCategory(cat);
+    };
+    el.appendChild(chip);
+  });
+}
+
+function renderFilteredList(containerId, items, category, query) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  let filtered = items;
+
+  // Apply category filter
+  if (category && category !== 'All') {
+    filtered = filtered.filter(item => item.category === category);
+  }
+
+  // Apply search query
+  if (query && query.trim().length > 0) {
+    const q = query.toLowerCase().trim();
+    filtered = filtered.filter(item =>
+      (item.title  || '').toLowerCase().includes(q) ||
+      (item.author || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (filtered.length === 0) {
+    el.innerHTML = `<div class="loading-msg">No results found.</div>`;
+    return;
+  }
+
+  el.innerHTML = '';
+  filtered.forEach(item => {
     const div = document.createElement('div');
     div.className = 'feed-item';
     div.id = 'item-' + item.id;
+
+    // Artwork: show real image if available, otherwise emoji
+    const thumbHtml = item.coverUrl
+      ? `<div class="feed-thumb" style="background:none;padding:0;overflow:hidden;">
+           <img src="${item.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='${item.icon || (item.type==='book'?'📚':'🎙️')}'">
+         </div>`
+      : `<div class="feed-thumb">${item.icon || (item.type === 'book' ? '📚' : '🎙️')}</div>`;
+
     div.innerHTML = `
-      <div class="feed-thumb">${item.icon}</div>
+      ${thumbHtml}
       <div class="feed-meta">
         <div class="feed-title">${item.title}</div>
-        <div class="feed-sub">${item.author}</div>
+        <div class="feed-sub">${item.author}${item.category ? ' · ' + item.category : ''}</div>
       </div>
       <span class="feed-dur">${item.type === 'book' ? '📚' : '🎙️'}</span>
     `;
@@ -371,14 +615,154 @@ function renderList(containerId, items) {
   });
 }
 
+// ── Podcast fetch via your Cloudflare Worker ──────────────────────────────────
+// Your Worker should accept ?podcast=NAME and return JSON:
+// { title, author, coverUrl, category, episodes: [{ id, title, stream, duration }] }
+async function fetchPodcastViaWorker(podcastName, category) {
+  try {
+    const url = `${CF_WORKER_URL}?podcast=${encodeURIComponent(podcastName)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !data.episodes || data.episodes.length === 0) return null;
+
+    // Return one item per episode, each playable independently
+    return data.episodes.slice(0, 3).map((ep, i) => ({
+      id: 'pod_' + podcastName.replace(/\s+/g, '_').toLowerCase() + '_' + i,
+      type: 'podcast',
+      title: data.title || podcastName,
+      author: data.author || '',
+      episode: ep.title,
+      stream: ep.stream,
+      coverUrl: data.coverUrl || null,
+      icon: '🎙️',
+      category: category,
+      duration: ep.duration || null
+    }));
+  } catch(e) {
+    console.warn('Podcast fetch failed for', podcastName, e);
+    return null;
+  }
+}
+
+// ── LibriVox audiobook fetch ──────────────────────────────────────────────────
+// Fetches up to 3 books per genre. Uses extended=1 to get chapter-level tracks.
+async function fetchLibriVoxGenre(genre, category) {
+  try {
+    const url = `https://librivox.org/api/feed/audiobooks/?genre=${encodeURIComponent(genre)}&extended=1&format=json&limit=3`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.books || data.books.length === 0) return null;
+
+    const results = [];
+    data.books.forEach(book => {
+      const author = book.authors && book.authors[0]
+        ? book.authors[0].first_name + ' ' + book.authors[0].last_name
+        : 'Unknown';
+
+      // Get cover art from Open Library using the book title
+      const coverQuery = encodeURIComponent(book.title);
+      const coverUrl = `https://covers.openlibrary.org/b/title/${coverQuery}-M.jpg`;
+
+      // Use first chapter as the default playable track
+      const firstSection = book.sections && book.sections[0];
+      if (!firstSection || !firstSection.listen_url) return;
+
+      results.push({
+        id: 'lv_' + book.id,
+        type: 'book',
+        title: book.title,
+        author: author,
+        episode: firstSection.title || 'Chapter 1',
+        stream: firstSection.listen_url,
+        coverUrl: coverUrl,
+        icon: '📚',
+        category: category,
+        sections: book.sections || [],   // all chapters stored for future chapter navigation
+        totaltime: book.totaltime || null
+      });
+    });
+    return results;
+  } catch(e) {
+    console.warn('LibriVox fetch failed for genre', genre, e);
+    return null;
+  }
+}
+
+
+// ── Search handlers ───────────────────────────────────────────────────────────
+function onPodcastSearch(value) {
+  podcastSearchQuery = value;
+  const clearBtn = document.getElementById('podcast-clear');
+  if (clearBtn) clearBtn.classList.toggle('visible', value.length > 0);
+  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+}
+
+function clearPodcastSearch() {
+  podcastSearchQuery = '';
+  const input = document.getElementById('podcast-search');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('podcast-clear');
+  if (clearBtn) clearBtn.classList.remove('visible');
+  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+}
+
+function onBookSearch(value) {
+  bookSearchQuery = value;
+  const clearBtn = document.getElementById('book-clear');
+  if (clearBtn) clearBtn.classList.toggle('visible', value.length > 0);
+  renderFilteredList('books-list', bookData, activeBookCategory, bookSearchQuery);
+}
+
+function clearBookSearch() {
+  bookSearchQuery = '';
+  const input = document.getElementById('book-search');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('book-clear');
+  if (clearBtn) clearBtn.classList.remove('visible');
+  renderFilteredList('books-list', bookData, activeBookCategory, bookSearchQuery);
+}
+
+// ── Category filter handlers ───────────────────────────────────────────────────
+function setPodcastCategory(cat) {
+  activePodcastCategory = cat;
+  // Update chip active state
+  document.querySelectorAll('#podcast-cats .cat-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.textContent === cat);
+  });
+  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+}
+
+function setBookCategory(cat) {
+  activeBookCategory = cat;
+  document.querySelectorAll('#book-cats .cat-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.textContent === cat);
+  });
+  renderFilteredList('books-list', bookData, activeBookCategory, bookSearchQuery);
+}
+ 
 // ── Playback ──────────────────────────────────────────────────────────────────
 function playTrack(track) {
   currentTrack = track;
 
   // Update artwork & info
-  document.getElementById('artwork-icon').textContent = track.icon;
-  document.getElementById('artwork-img').style.display = 'none';
-  document.getElementById('artwork-icon').style.display = 'block';
+ // Show real cover art if available, otherwise fall back to emoji
+  const artworkEl    = document.getElementById('artwork');
+  const artworkImg   = document.getElementById('artwork-img');
+  const artworkIcon  = document.getElementById('artwork-icon');
+  if (track.coverUrl) {
+    artworkImg.src = track.coverUrl;
+    artworkImg.className = 'visible';
+    artworkEl.classList.add('has-image');
+    artworkIcon.style.display = 'none';
+  } else {
+    artworkImg.className = '';
+    artworkImg.src = '';
+    artworkEl.classList.remove('has-image');
+    artworkIcon.textContent = track.icon || (track.type === 'book' ? '📚' : '🎙️');
+    artworkIcon.style.display = 'block';
+  }
   document.getElementById('track-title').textContent = track.title;
   document.getElementById('track-sub').textContent = track.author + (track.episode ? ' · ' + track.episode : '');
 
