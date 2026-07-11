@@ -35,230 +35,205 @@
     display: flex; align-items: center; justify-content: center;
     opacity: 0; transition: opacity 0.25s;
     pointer-events: none;
+    z-index: 1;
   }
+
   .slide.active {
-    opacity: 1; pointer-events: all;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 2;
   }
 
-  /* background video / iframe */
-  .slide video, .slide iframe {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    border: none;
+  /* ── Sharp fit structure to optimize high-density viewpoints ── */
+  .slide iframe, .slide video {
+    width: 100vw !important;
+    height: 56.25vw !important; 
+    min-height: 100vh !important;
+    min-width: 177.77vh !important; 
+    transform: scale(1.03) !important; 
+    object-fit: cover !important;
+    pointer-events: none !important; 
   }
 
-  /* Dark gradient overlays */
+  /* ── Overlays ── */
   .overlay-top {
-    position: absolute; top: 0; left: 0; right: 0; height: 120px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
-    pointer-events: none; z-index: 5;
-  }
-  .overlay-bottom {
-    position: absolute; bottom: 0; left: 0; right: 0; height: 280px;
-    background: linear-gradient(to top, rgba(0,0,0,0.80), transparent);
-    pointer-events: none; z-index: 5;
-  }
-
-  /* ── Top bar ── */
-  #top-bar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 20;
-    padding: 14px 16px 8px;
-    display: flex; align-items: center; justify-content: flex-end;
-  }
-  #token-badge {
-    background: var(--gold-dim);
-    border: 1px solid var(--gold-border);
-    border-radius: 20px; padding: 4px 10px;
-    font-size: 12px; color: var(--gold); font-weight: 600;
-    transition: transform 0.2s;
-  }
-  #token-badge.bump { transform: scale(1.2); }
-
-  /* ── Bottom info: user + caption ── */
-  .info-area {
-    position: absolute; bottom: 110px; left: 14px; right: 72px; z-index: 10;
-  }
-  .username { color: #fff; font-weight: 700; font-size: 15px; margin-bottom: 5px; }
-  .caption { color: rgba(255,255,255,0.88); font-size: 13px; line-height: 1.45; }
-
-  /* ── Right sidebar actions ── */
-  .right-actions {
-    position: absolute; bottom: 110px; right: 10px; z-index: 10;
-    display: flex; flex-direction: column; align-items: center; gap: 18px;
-  }
-  .action { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
-  .action-circle {
-    width: 44px; height: 44px; border-radius: 50%;
-    background: rgba(255,255,255,0.18);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; transition: transform 0.15s;
-  }
-  .action-circle:active { transform: scale(0.9); }
-  .action span { color: #fff; font-size: 11px; text-align: center; }
-
-  /* ── Progress bar ── */
-  #progress-wrap {
-    position: fixed; bottom: 94px; left: 0; right: 0; z-index: 20;
-    padding: 0 14px;
-  }
-  #progress-track {
-    height: 2.5px; background: rgba(255,255,255,0.25); border-radius: 2px;
-  }
-  #progress-fill {
-    height: 100%; background: #fff; border-radius: 2px;
-    width: 0%; transition: width 0.5s linear;
-  }
-
-  /* ── Reaction bar ── */
-  #reactions {
-    position: fixed; bottom: 12px; left: 0; right: 0; z-index: 20;
-    display: flex; gap: 8px; justify-content: center; padding: 0 10px;
-  }
-  .react-btn {
-    flex: 1; max-width: 64px;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 24px; padding: 7px 6px;
-    display: flex; flex-direction: column; align-items: center; gap: 1px;
-    cursor: pointer; transition: background 0.2s, transform 0.15s;
-    touch-action: manipulation;
-  }
-  .react-btn:active { transform: scale(0.92); }
-  .react-btn.tapped {
-    background: rgba(255,255,255,0.28);
-    border-color: rgba(255,255,255,0.7);
-  }
-  .react-btn .emoji { font-size: 18px; line-height: 1; }
-  .react-btn .rcount { color: #fff; font-size: 10px; }
-
-  /* ── Toast notifications ── */
-  #toast {
-    position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
-    background: rgba(20,20,20,0.9);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 20px; padding: 8px 18px;
-    color: #fff; font-size: 13px;
-    opacity: 0; transition: opacity 0.25s, transform 0.25s;
-    z-index: 50; white-space: nowrap;
-    backdrop-filter: blur(8px);
-  }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* ── Daily pick panel ── */
-  #daily-pick {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
-    background: rgba(10,10,10,0.95);
-    border-top: 1px solid rgba(255,255,255,0.12);
-    padding: 16px 14px 24px;
-    transform: translateY(100%); transition: transform 0.3s ease;
-    backdrop-filter: blur(12px);
-  }
-  #daily-pick.open { transform: translateY(0); }
-  #daily-pick h3 { color: #fff; font-size: 14px; margin-bottom: 4px; }
-  #daily-pick p { color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 14px; }
-  .pick-options { display: flex; gap: 8px; }
-  .pick-option {
-    flex: 1;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 10px; padding: 12px 8px;
-    cursor: pointer; text-align: center;
-    transition: background 0.2s, border-color 0.2s;
-    touch-action: manipulation;
-  }
-  .pick-option:active { background: rgba(255,255,255,0.15); }
-  .pick-option.chosen {
-    background: rgba(114,9,183,0.25);
-    border-color: rgba(114,9,183,0.7);
-  }
-  .pick-option .pick-icon { font-size: 22px; display: block; margin-bottom: 5px; }
-  .pick-option .pick-label { color: rgba(255,255,255,0.8); font-size: 11px; }
-  #daily-pick-close {
-    position: absolute; top: 12px; right: 14px;
-    color: rgba(255,255,255,0.4); font-size: 20px; cursor: pointer;
-  }
-
-  /* swipe hint arrow */
-  #swipe-hint {
-    position: fixed; bottom: 96px; right: 16px; z-index: 15;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    opacity: 0.5; animation: bounce 1.5s infinite;
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 80px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+    z-index: 5;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px;
     pointer-events: none;
   }
-  #swipe-hint span { color: #fff; font-size: 10px; }
-  @keyframes bounce {
-    0%,100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+  .overlay-top * { pointer-events: auto; }
+
+  .overlay-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 120px;
+    background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+    z-index: 5;
+    pointer-events: none;
   }
+
+  /* ── Floating Token Status Display ── */
+  .token-pill {
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid var(--gold-border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .token-icon { color: var(--gold); font-size: 16px; font-weight: bold; }
+  .token-label { color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; }
+
+  /* ── Right-Side Cluster: Raised up higher and spaced out more ── */
+  .right-actions {
+    position: absolute; right: 14px; bottom: 220px;
+    display: flex; flex-direction: column; align-items: center; gap: 32px;
+    z-index: 10;
+  }
+
+  .circle-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background-color: black;
+    border: 1px solid rgba(255,255,255,0.2);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: white; font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transition: transform 0.15s;
+  }
+  .circle-btn:active { transform: scale(0.9); }
+
+  /* ── Info / text area ── */
+  .info-area {
+    position: absolute; left: 16px; bottom: 24px;
+    max-width: 70%;
+    color: #fff;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .info-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  .info-desc { font-size: 13px; color: #ccc; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
+  /* ── Reactions: Hidden by default until 15s before termination ── */
+  .reactions-panel {
+    position: absolute; left: 16px; bottom: 74px;
+    display: flex; gap: 10px;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  .reactions-panel.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .react-item {
+    display: flex; flex-direction: column; align-items: center;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 12px;
+    border-radius: 18px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .react-item:active { transform: scale(0.9); }
+  .react-item.selected {
+    border-color: var(--gold);
+    background: var(--gold-dim);
+  }
+  .react-item.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .react-emoji { font-size: 18px; }
+  
+  /* ── .rcount hidden completely via structural layout display override ── */
+  .rcount { display: none !important; }
+
+  /* ── Tracking Line Progress Indicator ── */
+  .progress-line {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2.5px; background: rgba(255,255,255,0.2);
+    z-index: 10;
+  }
+  .progress-fill {
+    width: 0%; height: 100%;
+    background: var(--gold);
+    transition: width 0.2s linear;
+  }
+
+  /* ── Daily pick layout ── */
+  #daily-pick {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding: 24px;
+  }
+  #daily-pick.open { opacity: 1; pointer-events: auto; }
+  .pick-box {
+    background: #111; border: 1px solid var(--gold-border);
+    border-radius: 16px; width: 100%; max-width: 320px;
+    padding: 20px; text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  }
+  .pick-title { color: var(--gold); font-size: 20px; margin-bottom: 6px; font-weight: bold; }
+  .pick-subtitle { color: #aaa; font-size: 13px; margin-bottom: 16px; line-height: 1.4; }
+  #pick-options { display: flex; flex-direction: column; gap: 10px; }
+  .pick-option {
+    background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+    padding: 12px; display: flex; align-items: center; gap: 10px;
+    cursor: pointer; transition: background 0.2s, border-color 0.2s;
+  }
+  .pick-option.chosen { border-color: var(--gold); background: var(--gold-dim); }
+  .pick-icon { font-size: 18px; }
+  .pick-label { color: #fff; font-size: 14px; text-align: left; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  /* ── Ad overlay ── */
+  #ad-overlay {
+    position: absolute; inset: 0;
+    background: #000; z-index: 90;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #ad-overlay.open { opacity: 1; pointer-events: auto; }
+  .ad-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid rgba(255,215,0,0.2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<div id="toast"></div>
-
-<div id="mute-toggle-overlay" onclick="toggleGlobalVideoMute(event)" style="position: fixed; bottom: 160px; right: 16px; z-index: 25; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer;">
-  🔊
-</div>
-
-<!-- Top navigation bar -->
-<div id="top-bar">
-  <div id="token-badge">0 tokens</div>
-</div>
-
-<!-- Progress bar -->
-<div id="progress-wrap">
-  <div id="progress-track"><div id="progress-fill"></div></div>
-</div>
-
-<!-- Reaction buttons -->
-<div id="reactions">
-  <div class="react-btn" data-emoji="🔥" onclick="react(this)">
-    <span class="emoji">🔥</span><span class="rcount">0</span>
-  </div>
-  <div class="react-btn" data-emoji="😴" onclick="react(this)">
-    <span class="emoji">😴</span><span class="rcount">0</span>
-  </div>
-  <div class="react-btn" data-emoji="😂" onclick="react(this)">
-    <span class="emoji">😂</span><span class="rcount">0</span>
-  </div>
-  <div class="react-btn" data-emoji="🤯" onclick="react(this)">
-    <span class="emoji">🤯</span><span class="rcount">0</span>
-  </div>
-  <div class="react-btn" data-emoji="❤️" onclick="react(this)">
-    <span class="emoji">❤️</span><span class="rcount">0</span>
-  </div>
-</div>
-
-<!-- Swipe hint -->
-<div id="swipe-hint">
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-    <path d="M12 5v14M5 12l7 7 7-7" stroke="white" stroke-width="2" stroke-linecap="round"/>
-  </svg>
-  <span>swipe</span>
-</div>
-
-<!-- Feed -->
 <div id="feed"></div>
 
-<!-- Daily pick panel -->
 <div id="daily-pick">
-  <span id="daily-pick-close" onclick="closeDailyPick()">&#x2715;</span>
-  <h3>Which would you share with a friend?</h3>
-  <p>One tap · earn 1 token</p>
-  <div class="pick-options" id="pick-options"></div>
+  <div class="pick-box">
+    <div class="pick-title">Would You Pick?</div>
+    <div id="pick-prompt-subtitle" class="pick-subtitle">Choose your favorite from the last 3 videos:</div>
+    <div id="pick-options"></div>
+  </div>
+</div>
+
+<div id="ad-overlay">
+  <div class="ad-spinner"></div>
 </div>
 
 <script>
-// ── CONFIG ───────────────────────────────────────────────────────────────────
-// Set TEST_MODE = true during development to skip all API calls and use only
-// the 5 local test videos below. Zero quota is consumed in test mode.
-// Set to false when you are ready to test with real YouTube / Dailymotion content.
-const TEST_MODE = true;
+const YOUTUBE_API_KEY = "***REMOVED***";
 
-const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_DATA_API_V3_KEY'; // paste your key here
-
-// 35 category queries — one picked at random on each load
 const YT_QUERIES = [
   'funny animals compilation',
   'funny videos trending',
@@ -305,619 +280,477 @@ const DM_QUERIES = [
   'fitness transformation'
 ];
 
-// ── State ────────────────────────────────────────────────────────────────────
-let tokenBalance = 0;
-let currentIndex  = 0;
-let slides        = [];
-let progressTimer = null;
-let progressVal   = 0;
-let videoStartTime = null;
-let sessionReactions = {}; // { emoji: count }
-let sessionStamps = [];    // [ { videoId, displayName, timestamp } ]
-let sessionPicks  = [];    // [ { chosen, options } ]
+let slides = [];
+let currentIdx = 0;
+let players = {};
+
+let isMuted = true; 
+let isVideoPaused = false; // Internal tracking state for tap playback toggle
+
 let dailyPickShown = false;
-let videoAdSeconds          = 0;
-let adBreakThresholdReached = false;
-let videoAdActive           = false;
-let videoAdTimerInterval    = null;
-let videoTokenTimer         = null; // minute-based watch timer
-let slideIsActive           = false; // iframe-compatible play-state flag for timers
+let totalTokens = 0;
+let sessionPicks = [];
 
-// ── Test / demo video pool ────────────────────────────────────────────────────
-// These 5 videos are always used in TEST_MODE and always appended as fallback
-// in live mode so the feed never appears empty if API calls fail.
-// type:'demo' is required — activateSlide() uses it to pick the right player.
-const DEMO_VIDEOS = [
-  {
-    id: 'demo_001',
-    type: 'demo',
-    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
-    displayName: 'Forest Stream Loop',
-    caption: 'Watch this and react below to earn tokens #explore',
-    thumbnail: ''
-  },
-  {
-    id: 'demo_002',
-    type: 'demo',
-    videoUrl: 'https://www.w3schools.com/html/movie.mp4',
-    displayName: 'City Night Drive',
-    caption: 'How are you feeling today? React and earn #mood',
-    thumbnail: ''
-  },
-  {
-    id: 'demo_003',
-    type: 'demo',
-    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
-    displayName: 'Sunset Timelapse',
-    caption: 'Would you share this? See the daily pick below!',
-    thumbnail: ''
-  },
-  {
-    id: 'demo_004',
-    type: 'demo',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    displayName: 'Big Buck Bunny',
-    caption: 'Classic animated short — react and earn! #animation',
-    thumbnail: ''
-  },
-  {
-    id: 'demo_005',
-    type: 'demo',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    displayName: 'Elephants Dream',
-    caption: 'Open source animation — stamp your favourite moment!',
-    thumbnail: ''
-  }
-];
+let videoWatchedTime = 0; 
+let videoTokenTimer = null;
+let currentVideoDuration = 0;
 
-let isGlobalMuted = true;
+let videoAdTimer = null;
+let videoAdSeconds = 0;
+const AD_INTERVAL_SECONDS = 180; 
 
-// ── Mute toggle ───────────────────────────────────────────────────────────────
-function toggleGlobalVideoMute(event) {
-  if (event) event.stopPropagation();
-  isGlobalMuted = !isGlobalMuted;
-
-  const icon = document.getElementById('mute-toggle-overlay');
-  if (icon) icon.textContent = isGlobalMuted ? '🔇' : '🔊';
-
-  const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-  const type = slides[currentIndex]?.type;
-
-  if (type === 'demo') {
-    const vid = activeSlide?.querySelector('video');
-    if (vid) vid.muted = isGlobalMuted;
-  } else {
-    // Re-inject iframe with updated mute param — only way to change mute cross-origin
-    _injectIframe(activeSlide, slides[currentIndex]);
-  }
-}
-
-// ── Video token timer ─────────────────────────────────────────────────────────
-// Awards +1 token per 60 seconds of active watching.
-// Uses slideIsActive so it works for both native video and iframe sources.
-function startVideoTokenTimer() {
-  clearInterval(videoTokenTimer);
-  let elapsedSeconds = 0;
-  videoTokenTimer = setInterval(() => {
-    if (!slideIsActive || videoAdActive) return;
-    elapsedSeconds += 5;
-    if (elapsedSeconds >= 60) {
-      addTokens(1, 'watching a video');
-      elapsedSeconds = 0;
-    }
-  }, 5000);
-}
-
-// ── Ad-break timer ────────────────────────────────────────────────────────────
-// Counts accumulated seconds using the slideIsActive flag so it works for both
-// native video (demo) and iframe (YouTube / Dailymotion) slides.
-function startVideoAdTimer() {
-  if (videoAdTimerInterval) return;
-  videoAdTimerInterval = setInterval(() => {
-    if (videoAdActive) return;
-    if (!slideIsActive) return;
-    videoAdSeconds++;
-    if (videoAdSeconds >= 180) {
-      adBreakThresholdReached = true;
-      videoAdSeconds = 0;
-    }
-  }, 1000);
-}
-
-// Called when conditions are met (user pauses or swipes after 3 min).
-function triggerVideoAdBreak() {
-  videoAdActive = true;
-  adBreakThresholdReached = false;
-  slideIsActive = false;
-  postToGodot({ type: 'show_interstitial' });
-}
-
-// Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
-// The WebView was never destroyed — all JS state, variables, and timers survived.
-function resumePlayback() {
-  videoAdActive = false;
-  slideIsActive = true;
-  const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-  const type = slides[currentIndex]?.type;
-
-  if (type === 'demo') {
-    const vid = activeSlide?.querySelector('video');
-    if (vid) {
-      vid.play().catch(() => {});
-      startProgress(vid);
-    }
-  } else {
-    // Re-inject iframe with autoplay to resume YouTube / Dailymotion
-    _injectIframe(activeSlide, slides[currentIndex]);
-    startFakeProgress();
-  }
-  showCenterIcon('▶');
-  startVideoAdTimer();
-}
-
-// ── Token helpers ─────────────────────────────────────────────────────────────
-function addTokens(n, label) {
-  tokenBalance += n;
-  const badge = document.getElementById('token-badge');
-  badge.textContent = tokenBalance + ' token' + (tokenBalance !== 1 ? 's' : '');
-  badge.classList.add('bump');
-  setTimeout(() => badge.classList.remove('bump'), 300);
-  showToast((n > 0 ? '+' + n : n) + ' ' + (n === 1 ? 'token' : 'tokens') + ' — ' + label);
-  postToGodot({ type: 'tokens', delta: n, total: tokenBalance, reason: label });
-}
+let videoReactions = {}; 
 
 function postToGodot(data) {
+  console.log("postToGodot:", data);
+  if (typeof window.JavaScriptBridge !== 'undefined' && window.JavaScriptBridge.postToGodot) {
+    window.JavaScriptBridge.postToGodot(JSON.stringify(data));
+  } else if (typeof window.Godot !== 'undefined' && window.Godot.postToGodot) {
+    window.Godot.postToGodot(JSON.stringify(data));
+  }
+}
+
+function addTokens(amt, reason) {
+  totalTokens += amt;
+  document.querySelectorAll('.token-label').forEach(el => {
+    el.innerText = totalTokens + ' TOKENS';
+  });
+  postToGodot({ type: 'token_earned', amount: amt, total: totalTokens, reason: reason });
+}
+
+window.onload = function() {
+  const tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  const firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+};
+
+function onYouTubeIframeAPIReady() {
+  fetchYouTubeVideos();
+}
+
+async function fetchYouTubeVideos() {
+  const q = YT_QUERIES[Math.floor(Math.random() * YT_QUERIES.length)];
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=6&type=video&q=${encodeURIComponent(q + ' #Shorts')}&key=${YOUTUBE_API_KEY}`;
+
   try {
-    if (window.JavaScriptBridge) {
-      window.JavaScriptBridge.call('receive_video_data', JSON.stringify(data));
-    }
-  } catch(e) {}
-  console.log('[Godot bridge]', JSON.stringify(data));
-}
-
-// ── Toast ────────────────────────────────────────────────────────────────────
-let toastTimer = null;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-// ── Iframe injection helper ───────────────────────────────────────────────────
-// Creates and injects an iframe for YouTube or Dailymotion into a slide.
-// Called by activateSlide() and by resumePlayback() after an ad closes.
-// Removes any existing iframe first to avoid duplicates.
-function _injectIframe(slideEl, videoMeta) {
-  const old = slideEl.querySelector('iframe');
-  if (old) old.remove();
-
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
-  iframe.setAttribute('allowfullscreen', '');
-  iframe.setAttribute('allow', 'autoplay; fullscreen');
-
-  if (videoMeta.type === 'youtube') {
-    iframe.src = `https://www.youtube.com/embed/${videoMeta.youtubeId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoMeta.youtubeId}&mute=${isGlobalMuted ? 1 : 0}`;
-  } else if (videoMeta.type === 'dailymotion') {
-    iframe.src = `https://geo.dailymotion.com/player.html?video=${videoMeta.dailymotionId}&autoplay=true&mute=${isGlobalMuted}&controls=false&ui-start-screen-info=false&loop=true`;
-  }
-
-  // Insert before the overlay divs so overlays and all UI sit on top
-  const firstOverlay = slideEl.querySelector('.overlay-top');
-  if (firstOverlay) {
-    slideEl.insertBefore(iframe, firstOverlay);
-  } else {
-    slideEl.appendChild(iframe);
-  }
-}
-
-// ── Video loader ──────────────────────────────────────────────────────────────
-async function loadVideos() {
-  let videos = [];
-
-  if (TEST_MODE) {
-    // In test mode: skip all API calls, use only demo videos.
-    // No YouTube quota is consumed. Safe for all development sessions.
-    console.log('[TEST_MODE] Skipping API calls. Using demo videos only.');
-    slides = [...DEMO_VIDEOS];
-    buildFeed();
-    return;
-  }
-
-  // ── YouTube ──────────────────────────────────────────────────────────────
-  if (YOUTUBE_API_KEY && YOUTUBE_API_KEY !== 'YOUR_YOUTUBE_DATA_API_V3_KEY') {
-    try {
-      const query = YT_QUERIES[Math.floor(Math.random() * YT_QUERIES.length)];
-      const res = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoDuration=short&q=${encodeURIComponent(query)}&maxResults=5&key=${YOUTUBE_API_KEY}`
-      );
-      const data = await res.json();
-      if (data.items) {
-        data.items.forEach(item => {
-          videos.push({
-            id: 'yt_' + item.id.videoId,      // internal id — sent to Godot, never shown
-            type: 'youtube',
-            youtubeId: item.id.videoId,
-            displayName: item.snippet.channelTitle,
-            caption: item.snippet.title,
-            category: query
-          });
-        });
-      }
-    } catch(e) { console.warn('YouTube fetch failed:', e); }
-  }
-
-  // ── Dailymotion ───────────────────────────────────────────────────────────
-  try {
-    const dmQuery = DM_QUERIES[Math.floor(Math.random() * DM_QUERIES.length)];
-    const res = await fetch(
-      `https://api.dailymotion.com/videos?fields=id,title,owner.screenname&search=${encodeURIComponent(dmQuery)}&flags=vertical&limit=5&language=en`
-    );
+    const res = await fetch(url);
     const data = await res.json();
-    if (data.list) {
-      data.list.forEach(v => {
-        videos.push({
-          id: 'dm_' + v.id,                   // internal id — sent to Godot, never shown
-          type: 'dailymotion',
-          dailymotionId: v.id,
-          displayName: v['owner.screenname'] || 'Creator',
-          caption: v.title,
-          category: dmQuery
-        });
-      });
+    if (data && data.items && data.items.length > 0) {
+      const formatted = data.items.map(item => ({
+        type: 'youtube',
+        id: item.id.videoId,
+        displayName: item.snippet.title || 'YouTube Short',
+        desc: item.snippet.channelTitle || 'Trending Creator'
+      }));
+      slides = slides.concat(formatted);
+      initFeed();
+    } else {
+      fetchDailyMotionVideos();
     }
-  } catch(e) { console.warn('Dailymotion fetch failed:', e); }
-
-  // Demo videos always appended so feed is never empty if APIs fail
-  videos = [...videos, ...DEMO_VIDEOS];
-
-  // Shuffle to mix YouTube, Dailymotion, and demo clips together
-  slides = videos.sort(() => Math.random() - 0.5);
-  buildFeed();
+  } catch(e) {
+    console.error(e);
+    fetchDailyMotionVideos();
+  }
 }
 
-// ── Build feed ────────────────────────────────────────────────────────────────
-function buildFeed() {
+async function fetchDailyMotionVideos() {
+  const q = DM_QUERIES[Math.floor(Math.random() * DM_QUERIES.length)];
+  const url = `https://api.dailymotion.com/videos?fields=id,title,owner.username&limit=6&search=${encodeURIComponent(q)}&flags=vertical`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data && data.list && data.list.length > 0) {
+      const formatted = data.list.map(item => ({
+        type: 'dailymotion',
+        id: item.id,
+        displayName: item.title || 'DailyMotion Short',
+        desc: item['owner.username'] || 'Featured Creator'
+      }));
+      slides = slides.concat(formatted);
+    }
+  } catch(e) {
+    console.error(e);
+  }
+
+  if (slides.length === 0) {
+    showErrorScreen("Feeds temporarily unavailable. Please try again later.");
+    return; // Stop execution so initFeed() doesn't run with empty data
+  }
+  initFeed();
+}
+
+function initFeed() {
   const feed = document.getElementById('feed');
   feed.innerHTML = '';
-  slides.forEach((v, i) => {
+  
+  slides.forEach((vid, idx) => {
     const slide = document.createElement('div');
-    slide.className = 'slide' + (i === 0 ? ' active' : '');
-    slide.dataset.id = v.id;
-    slide.dataset.index = i;
+    slide.className = `slide ${idx === 0 ? 'active' : ''}`;
+    slide.id = `slide-${idx}`;
 
-    // For demo videos: create the <video> element immediately.
-    // For YouTube / Dailymotion: the iframe is injected by activateSlide()
-    // only when this slide becomes active, preventing simultaneous load of
-    // all iframes at once.
-    if (v.type === 'demo') {
-      const vid = document.createElement('video');
-      vid.src = v.videoUrl;
-      vid.loop = true;
-      vid.muted = isGlobalMuted;
-      vid.playsInline = true;
-      vid.preload = 'metadata';
-      vid.setAttribute('playsinline', '');
-      vid.addEventListener('timeupdate', onTimeUpdate);
-      vid.addEventListener('loadedmetadata', () => {
-        if (i === currentIndex) startProgress(vid);
-      });
-      slide.appendChild(vid);
+    let playerHtml = '';
+    if (vid.type === 'youtube') {
+      playerHtml = `<div id="yt-player-${idx}"></div>`;
+    } else {
+      playerHtml = `<iframe id="dm-player-${idx}" src="https://www.dailymotion.com/embed/video/${vid.id}?api=1&autoplay=1&mute=1&controls=0&sharing-enable=0&ui-start-screen-owner=0" allow="autoplay" crossorigin></iframe>`;
     }
 
-    // Overlays
-    const ot = document.createElement('div'); ot.className = 'overlay-top';
-    const ob = document.createElement('div'); ob.className = 'overlay-bottom';
-    slide.appendChild(ot); slide.appendChild(ob);
-
-    // Info
-    const info = document.createElement('div'); info.className = 'info-area';
-    info.innerHTML = `<div class="username">${v.displayName}</div><div class="caption">${v.caption}</div>`;
-    slide.appendChild(info);
-
-    // Right actions
-    const ra = document.createElement('div'); ra.className = 'right-actions';
-    ra.innerHTML = `
-      <div class="action" onclick="stampMoment(${i})">
-        <div class="action-circle">⭐</div>
-        <span>stamp</span>
+    slide.innerHTML = `
+      <div class="overlay-top">
+        <div class="token-pill">
+          <span class="token-icon">⚡</span>
+          <span class="token-label">0 TOKENS</span>
+        </div>
       </div>
+      
+      ${playerHtml}
+      
+      <div class="overlay-bottom"></div>
+      
+      <div class="reactions-panel" id="reacts-${idx}">
+        <div class="react-item" onclick="handleReaction('${vid.id}', '🔥', this); event.stopPropagation();">
+          <span class="react-emoji">🔥</span>
+          <span class="rcount">0</span>
+        </div>
+        <div class="react-item" onclick="handleReaction('${vid.id}', '😴', this); event.stopPropagation();">
+          <span class="react-emoji">😴</span>
+          <span class="rcount">0</span>
+        </div>
+        <div class="react-item" onclick="handleReaction('${vid.id}', '😂', this); event.stopPropagation();">
+          <span class="react-emoji">😂</span>
+          <span class="rcount">0</span>
+        </div>
+        <div class="react-item" onclick="handleReaction('${vid.id}', '🤯', this); event.stopPropagation();">
+          <span class="react-emoji">🤯</span>
+          <span class="rcount">0</span>
+        </div>
+        <div class="react-item" onclick="handleReaction('${vid.id}', '❤️', this); event.stopPropagation();">
+          <span class="react-emoji">❤️</span>
+          <span class="rcount">0</span>
+        </div>
+      </div>
+      
+      <div class="right-actions" onclick="event.stopPropagation();">
+        <div class="circle-btn" onclick="toggleMuteState()">${isMuted ? '🔇' : '🔊'}</div>
+        <div class="circle-btn" onclick="simulateSwipePrev()">▲</div>
+        <div class="circle-btn" onclick="simulateSwipeNext()">▼</div>
+      </div>
+      
+      <div class="info-area">
+        <div class="info-title">${vid.displayName}</div>
+        <div class="info-desc">@${vid.desc}</div>
+      </div>
+      
+      <div class="progress-line"><div class="progress-fill" id="pfill-${idx}"></div></div>
     `;
-    slide.appendChild(ra);
-
+    
     feed.appendChild(slide);
   });
 
-  // Start first video
-  activateSlide(0);
-
-  // Swipe / scroll handling
-  setupSwipe(feed);
-  feed.addEventListener('wheel', e => {
-    if (e.deltaY > 30) nextSlide();
-    else if (e.deltaY < -30) prevSlide();
-  }, { passive: true });
-
-  // Show daily pick panel after 8 seconds
-  setTimeout(triggerDailyPick, 8000);
-
-  // Start the 3-minute ad-break accumulation clock
+  document.querySelectorAll('.token-label').forEach(el => el.innerText = totalTokens + ' TOKENS');
+  
+  loadInitialPlayer();
   startVideoAdTimer();
+  setupSwipeGestures();
 }
 
-// ── Activate slide ────────────────────────────────────────────────────────────
-function activateSlide(index) {
-  const allSlides = document.querySelectorAll('.slide');
-  slideIsActive = false; // pause timers during transition
+function loadInitialPlayer() {
+  if (slides[0].type === 'youtube') {
+    loadYTPlayer(0);
+  } else {
+    setupDMMessaging(0);
+    startVideoTokenTimer();
+  }
+}
 
-  allSlides.forEach((s, i) => {
-    s.classList.toggle('active', i === index);
-
-    if (i === index) {
-      const meta = slides[i];
-      if (meta.type === 'demo') {
-        const vid = s.querySelector('video');
-        if (vid) {
-          vid.muted = isGlobalMuted;
-          vid.play().catch(() => {});
-          resetProgress();
-          startProgress(vid);
+function loadYTPlayer(idx) {
+  if (players[idx]) return;
+  players[idx] = new YT.Player(`yt-player-${idx}`, {
+    height: '100%', width: '100%',
+    videoId: slides[idx].id,
+    playerVars: {
+      'autoplay': 1, 'controls': 0, 'rel': 0, 'showinfo': 0,
+      'modestbranding': 1, 'playsinline': 1, 'iv_load_policy': 3,
+      'vq': 'hd720' 
+    },
+    events: {
+      'onReady': (e) => {
+        if (isMuted) {
+          e.target.mute();
+        } else {
+          e.target.unmute();
         }
-      } else {
-        // Inject iframe to start YouTube / Dailymotion playback
-        _injectIframe(s, meta);
-        resetProgress();
-        // Fake progress bar — currentTime not readable cross-origin
-        startFakeProgress();
+        if (idx === currentIdx) {
+          e.target.playVideo();
+          isVideoPaused = false;
+          startVideoTokenTimer();
+        }
+      },
+      'onStateChange': (e) => {
+        if (e.data === YT.PlayerState.ENDED && idx === currentIdx) {
+          simulateSwipeNext();
+        }
       }
-      videoStartTime = Date.now();
-      slideIsActive = true;
+    }
+  });
+}
+
+function setupDMMessaging(idx) {
+  window.addEventListener('message', (e) => {
+    if (!e.origin.includes('dailymotion.com')) return;
+    try {
+      const data = JSON.parse(e.data);
+      if (data.event === 'videoend' && idx === currentIdx) {
+        simulateSwipeNext();
+      }
+    } catch(err){}
+  });
+}
+
+function toggleMuteState() {
+  isMuted = !isMuted;
+  
+  document.querySelectorAll('.right-actions .circle-btn:first-child').forEach(btn => {
+    btn.innerText = isMuted ? '🔇' : '🔊';
+  });
+
+  const currentVideo = slides[currentIdx];
+  if (currentVideo.type === 'youtube' && players[currentIdx] && typeof players[currentIdx].mute === 'function') {
+    if (isMuted) {
+      players[currentIdx].mute();
     } else {
-      // Stop native video
-      const vid = s.querySelector('video');
-      if (vid) { vid.pause(); vid.currentTime = 0; }
-      // Remove iframe to stop playback and free memory
-      const iframe = s.querySelector('iframe');
-      if (iframe) iframe.remove();
+      players[currentIdx].unmute();
+    }
+  } else if (currentVideo.type === 'dailymotion') {
+    const iframe = document.getElementById(`dm-player-${currentIdx}`);
+    if (iframe && iframe.contentWindow) {
+      const msg = isMuted ? 'mute' : 'unmute';
+      iframe.contentWindow.postMessage(JSON.stringify({ command: msg }), '*');
+    }
+  }
+}
+
+function handleReaction(videoId, emoji, element) {
+  if (videoReactions[videoId]) return; 
+
+  videoReactions[videoId] = emoji;
+  
+  const parent = element.parentElement;
+  parent.querySelectorAll('.react-item').forEach(item => {
+    if (item === element) {
+      item.classList.add('selected');
+    } else {
+      item.classList.add('disabled');
     }
   });
 
-  resetReactionBar();
-  currentIndex = index;
-  startVideoTokenTimer(); // restart the 60-second token clock for this slide
+  addTokens(2, 'video reaction');
+  postToGodot({ type: 'reaction', video_id: videoId, emoji: emoji });
 }
 
-// ── Progress ──────────────────────────────────────────────────────────────────
-function startProgress(vid) {
-  clearInterval(progressTimer);
-  progressVal = 0;
-  progressTimer = setInterval(() => {
-    if (!vid.duration) return;
-    progressVal = (vid.currentTime / vid.duration) * 100;
-    document.getElementById('progress-fill').style.width = progressVal + '%';
-    if (progressVal >= 99) clearInterval(progressTimer);
-  }, 500);
-}
-
-// For iframe slides currentTime is not accessible cross-origin.
-// A slow-moving fake fill keeps the progress bar looking correct.
-function startFakeProgress() {
-  clearInterval(progressTimer);
-  progressVal = 0;
-  const FAKE_DURATION_MS = 60000; // simulate a 60-second clip
-  const startTime = Date.now();
-  progressTimer = setInterval(() => {
-    progressVal = Math.min(((Date.now() - startTime) / FAKE_DURATION_MS) * 100, 99);
-    document.getElementById('progress-fill').style.width = progressVal + '%';
-  }, 500);
-}
-
-function resetProgress() {
-  clearInterval(progressTimer);
-  document.getElementById('progress-fill').style.width = '0%';
-}
-
-function onTimeUpdate(e) {}
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-function nextSlide() {
-  if (currentIndex >= slides.length - 1) return;
-
-  if (adBreakThresholdReached) {
-    // Advance to the new slide first so the user sees it, then fire the ad
-    activateSlide(currentIndex + 1);
-    const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-    // Pause native video if present
-    const vid = activeSlide?.querySelector('video');
-    if (vid) { vid.pause(); clearInterval(progressTimer); }
-    // Remove iframe if present
-    const iframe = activeSlide?.querySelector('iframe');
-    if (iframe) { iframe.remove(); clearInterval(progressTimer); }
-    slideIsActive = false;
-    triggerVideoAdBreak();
-    return;
+function pauseActiveVideo() {
+  const prevVideo = slides[currentIdx];
+  if (prevVideo.type === 'youtube' && players[currentIdx] && typeof players[currentIdx].pauseVideo === 'function') {
+    players[currentIdx].pauseVideo();
+  } else if (prevVideo.type === 'dailymotion') {
+    const iframe = document.getElementById(`dm-player-${currentIdx}`);
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(JSON.stringify({ command: 'pause' }), '*');
+    }
   }
-
-  activateSlide(currentIndex + 1);
 }
 
-function prevSlide() {
-  if (currentIndex > 0) activateSlide(currentIndex - 1);
+function playActiveVideo() {
+  const nextVideo = slides[currentIdx];
+  if (nextVideo.type === 'youtube') {
+    if (!players[currentIdx]) {
+      loadYTPlayer(currentIdx);
+    } else if (typeof players[currentIdx].playVideo === 'function') {
+      if (isMuted) players[currentIdx].mute(); else players[currentIdx].unmute();
+      players[currentIdx].playVideo();
+      isVideoPaused = false;
+      startVideoTokenTimer();
+    }
+  } else {
+    setupDMMessaging(currentIdx);
+    const iframe = document.getElementById(`dm-player-${currentIdx}`);
+    if (iframe && iframe.contentWindow) {
+      if (isMuted) {
+        iframe.contentWindow.postMessage(JSON.stringify({ command: 'mute' }), '*');
+      } else {
+        iframe.contentWindow.postMessage(JSON.stringify({ command: 'unmute' }), '*');
+      }
+      iframe.contentWindow.postMessage(JSON.stringify({ command: 'play' }), '*');
+    }
+    isVideoPaused = false;
+    startVideoTokenTimer();
+  }
 }
 
-// ── Touch / swipe / tap ───────────────────────────────────────────────────────
-function setupSwipe(el) {
+function togglePlayPause() {
+  if (isVideoPaused) {
+    playActiveVideo();
+  } else {
+    pauseActiveVideo();
+    stopVideoTokenTimer();
+    isVideoPaused = true;
+  }
+}
+
+function simulateSwipeNext() {
+  if (currentIdx >= slides.length - 1) return;
+
+  stopVideoTokenTimer();
+  pauseActiveVideo();
+
+  document.getElementById(`slide-${currentIdx}`).classList.remove('active');
+  currentIdx++;
+  document.getElementById(`slide-${currentIdx}`).classList.add('active');
+
+  playActiveVideo();
+
+  if (currentIdx === 3) {
+    triggerDailyPick();
+  }
+}
+
+function simulateSwipePrev() {
+  if (currentIdx <= 0) return;
+
+  stopVideoTokenTimer();
+  pauseActiveVideo();
+
+  document.getElementById(`slide-${currentIdx}`).classList.remove('active');
+  currentIdx--;
+  document.getElementById(`slide-${currentIdx}`).classList.add('active');
+
+  playActiveVideo();
+}
+
+function setupSwipeGestures() {
+  const feed = document.getElementById('feed');
   let startY = null;
   let startX = null;
-  let startTime = 0;
+  let startTime = null;
 
-  el.addEventListener('touchstart', e => {
+  feed.addEventListener('touchstart', e => {
     startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
     startTime = Date.now();
   }, { passive: true });
 
-  el.addEventListener('touchend', e => {
-    if (startY === null) return;
+  feed.addEventListener('touchend', e => {
+    if (startY === null || startX === null || startTime === null) return;
+    
     const endY = e.changedTouches[0].clientY;
     const endX = e.changedTouches[0].clientX;
     const dy = startY - endY;
     const dx = startX - endX;
-    const elapsed = Date.now() - startTime;
+    const elapsedTime = Date.now() - startTime;
 
-    const isSwipe = Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx);
-    const isTap = Math.abs(dy) < 12 && Math.abs(dx) < 12 && elapsed < 300;
-
-    if (isSwipe) {
-      if (dy > 0) nextSlide();
-      else prevSlide();
-    } else if (isTap) {
-      // Ignore taps that land on a button/control (reactions, stamp, etc.)
-      if (!e.target.closest('.react-btn, .action, #top-bar, #daily-pick')) {
-        toggleTapPause();
+    // Differentiate swipe gesture from tap gesture
+    if (Math.abs(dy) > 45 && Math.abs(dy) > Math.abs(dx)) {
+      if (dy > 0) {
+        simulateSwipeNext();
+      } else {
+        simulateSwipePrev();
       }
+    } else if (Math.abs(dy) < 10 && Math.abs(dx) < 10 && elapsedTime < 300) {
+      // Confirmed rapid tap interaction on clean window space
+      togglePlayPause();
     }
-
-    startY = null; startX = null;
+    
+    startY = null;
+    startX = null;
+    startTime = null;
   }, { passive: true });
-
-  // Mouse click fallback for desktop testing
-  el.addEventListener('click', e => {
-    if (!e.target.closest('.react-btn, .action, #top-bar, #daily-pick')) {
-      toggleTapPause();
-    }
-  });
 }
 
-// ── Tap-to-pause/resume (TikTok-style) ────────────────────────────────────────
-function toggleTapPause() {
-  const activeSlide = document.querySelectorAll('.slide')[currentIndex];
-  const type = slides[currentIndex]?.type;
-
-  if (type === 'demo') {
-    const vid = activeSlide?.querySelector('video');
-    if (!vid) return;
-
-    if (vid.paused) {
-      // Resume only if no ad is waiting
-      if (!videoAdActive) {
-        vid.play().catch(() => {});
-        startProgress(vid);
-        showCenterIcon('▶');
-        slideIsActive = true;
-      }
+function startVideoTokenTimer() {
+  if (videoTokenTimer) clearInterval(videoTokenTimer);
+  
+  videoTokenTimer = setInterval(() => {
+    videoWatchedTime++;
+    
+    let pct = 0;
+    let timeLeft = 30; 
+    const cur = slides[currentIdx];
+    
+    if (cur.type === 'youtube' && players[currentIdx] && typeof players[currentIdx].getDuration === 'function') {
+      currentVideoDuration = players[currentIdx].getDuration() || 30;
+      const curTime = players[currentIdx].getCurrentTime() || 0;
+      pct = (curTime / currentVideoDuration) * 100;
+      timeLeft = currentVideoDuration - curTime;
     } else {
-      // Pause
-      vid.pause();
-      clearInterval(progressTimer);
-      showCenterIcon('⏸');
-      slideIsActive = false;
-      // If 3 minutes have elapsed, this pause is the ad trigger moment
-      if (adBreakThresholdReached) {
-        triggerVideoAdBreak();
+      currentVideoDuration = 30;
+      pct = (videoWatchedTime / currentVideoDuration) * 100;
+      timeLeft = currentVideoDuration - videoWatchedTime;
+    }
+    if (pct > 100) pct = 100;
+
+    const fillEl = document.getElementById(`pfill-${currentIdx}`);
+    if (fillEl) fillEl.style.width = pct + '%';
+
+    const reactPanel = document.getElementById(`reacts-${currentIdx}`);
+    if (reactPanel) {
+      if (timeLeft <= 15) {
+        reactPanel.classList.add('visible');
+      } else {
+        reactPanel.classList.remove('visible');
       }
     }
-  } else {
-    // YouTube / Dailymotion iframes handle tap natively (controls=0 means
-    // no visible UI, but the player still responds to tap internally).
-    // We only intercept the tap to check the ad threshold.
-    if (adBreakThresholdReached) {
-      const iframe = activeSlide?.querySelector('iframe');
-      if (iframe) iframe.remove();
-      clearInterval(progressTimer);
-      slideIsActive = false;
-      triggerVideoAdBreak();
+
+    if (videoWatchedTime % 120 === 0) {
+      addTokens(1, 'continuous watch milestone');
     }
+  }, 1000);
+}
+
+function stopVideoTokenTimer() {
+  if (videoTokenTimer) {
+    clearInterval(videoTokenTimer);
+    videoTokenTimer = null;
   }
 }
 
-function showCenterIcon(symbol) {
-  let icon = document.getElementById('center-pause-icon');
-  if (!icon) {
-    icon = document.createElement('div');
-    icon.id = 'center-pause-icon';
-    icon.style.cssText = `
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-      width: 64px; height: 64px; border-radius: 50%;
-      background: rgba(0,0,0,0.45);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px; color: #fff; z-index: 25;
-      opacity: 0; transition: opacity 0.2s;
-      pointer-events: none;
-    `;
-    document.body.appendChild(icon);
-  }
-  icon.textContent = symbol;
-  icon.style.opacity = '1';
-  clearTimeout(icon._hideTimer);
-  icon._hideTimer = setTimeout(() => { icon.style.opacity = '0'; }, 450);
+function startVideoAdTimer() {
+  if (videoAdTimer) clearInterval(videoAdTimer);
+  videoAdTimer = setInterval(() => {
+    videoAdSeconds++;
+    if (videoAdSeconds >= AD_INTERVAL_SECONDS) {
+      videoAdSeconds = 0;
+      triggerAdBreak();
+    }
+  }, 1000);
 }
 
-// ── Reactions ─────────────────────────────────────────────────────────────────
-function react(btn) {
-  const emoji = btn.dataset.emoji;
-  if (btn.classList.contains('tapped')) return; // once per video per emoji
-  btn.classList.add('tapped');
-  const countEl = btn.querySelector('.rcount');
-  countEl.textContent = parseInt(countEl.textContent) + 1;
-
-  sessionReactions[emoji] = (sessionReactions[emoji] || 0) + 1;
-  addTokens(1, 'reacting ' + emoji);
-  postToGodot({ type: 'reaction', emoji, videoId: slides[currentIndex]?.id, displayName: slides[currentIndex]?.displayName, reactions: sessionReactions });
-
-  // Float animation
-  const clone = btn.querySelector('.emoji').cloneNode(true);
-  clone.style.cssText = 'position:fixed;font-size:32px;pointer-events:none;z-index:99;transition:transform 0.8s,opacity 0.8s;';
-  const rect = btn.getBoundingClientRect();
-  clone.style.left = rect.left + 'px';
-  clone.style.top  = rect.top + 'px';
-  document.body.appendChild(clone);
-  requestAnimationFrame(() => {
-    clone.style.transform = 'translateY(-80px) scale(1.5)';
-    clone.style.opacity = '0';
-  });
-  setTimeout(() => clone.remove(), 900);
+function triggerAdBreak() {
+  stopVideoTokenTimer();
+  pauseActiveVideo();
+  document.getElementById('ad-overlay').classList.add('open');
+  postToGodot({ type: 'trigger_ad' });
 }
 
-function resetReactionBar() {
-  document.querySelectorAll('.react-btn').forEach(b => {
-    b.classList.remove('tapped');
-    b.querySelector('.rcount').textContent = '0';
-  });
-}
-
-// ── Stamp ─────────────────────────────────────────────────────────────────────
-function stampMoment(slideIndex) {
-  const activeSlides = document.querySelectorAll('.slide');
-  const type = slides[slideIndex]?.type;
-  // For iframe slides currentTime is not accessible cross-origin; ts will be 0.
-  // The videoId still uniquely identifies the clip for your backend.
-  const vid = (type === 'demo') ? activeSlides[slideIndex]?.querySelector('video') : null;
-  const ts = vid ? Math.round(vid.currentTime) : 0;
-  const videoId = slides[slideIndex]?.id;
-  const displayName = slides[slideIndex]?.displayName;
-
-  sessionStamps.push({ videoId, displayName, timestamp: ts });
-  addTokens(2, 'stamping a best moment');
-  postToGodot({ type: 'stamp', videoId, displayName, timestamp: ts, stamps: sessionStamps });
-
-  showToast('⭐ Stamped at ' + fmtTime(ts));
+function resumePlayback() {
+  document.getElementById('ad-overlay').classList.remove('open');
+  playActiveVideo();
 }
 
 function fmtTime(s) {
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 
-// ── Daily pick ────────────────────────────────────────────────────────────────
 function triggerDailyPick() {
   if (dailyPickShown) return;
   dailyPickShown = true;
-  const pool = slides.slice(0, Math.min(3, slides.length));
+  
+  const pool = slides.slice(0, 3);
   const opts = pool.map(v => ({ id: v.id, label: v.displayName }));
   const container = document.getElementById('pick-options');
   container.innerHTML = '';
+  
   opts.forEach(opt => {
     const div = document.createElement('div');
     div.className = 'pick-option';
@@ -935,15 +768,33 @@ function choosePick(el, chosen, all) {
   sessionPicks.push({ chosen: chosen.id, options: all.map(o => o.id) });
   addTokens(1, 'daily pick vote');
   postToGodot({ type: 'daily_pick', chosen: chosen.id, options: all.map(o => o.id) });
-  setTimeout(closeDailyPick, 1200);
+
+  setTimeout(() => {
+    document.getElementById('daily-pick').classList.remove('open');
+  }, 600);
 }
 
-function closeDailyPick() {
-  document.getElementById('daily-pick').classList.remove('open');
+function showErrorScreen(message) {
+  const feed = document.getElementById('feed');
+  feed.innerHTML = `
+    <div style="
+      position: absolute; 
+      inset: 0; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      color: #aaa; 
+      padding: 20px; 
+      text-align: center;
+      font-family: sans-serif;
+    ">
+      <span style="font-size: 40px; margin-bottom: 12px;">⚠️</span>
+      <p style="font-size: 16px; font-weight: 500; margin-bottom: 8px; color: #fff;">Connection Error</p>
+      <p style="font-size: 13px; max-width: 260px; line-height: 1.4;">${message}</p>
+    </div>
+  `;
 }
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-loadVideos();
 </script>
 </body>
 </html>
