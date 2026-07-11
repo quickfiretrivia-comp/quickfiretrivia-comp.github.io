@@ -22,14 +22,12 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
-  /* ── Feed container ── */
   #feed {
     width: 100%; height: 100%;
     position: relative;
     overflow: hidden;
   }
 
-  /* ── Individual video slide ── */
   .slide {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -44,7 +42,7 @@
     z-index: 2;
   }
 
-  /* ── Sharp fit structure to optimize high-density viewpoints ── */
+  /* Fixed pointer-events so browser can register user interaction signals */
   .slide iframe, .slide video {
     width: 100vw !important;
     height: 56.25vw !important; 
@@ -52,10 +50,9 @@
     min-width: 177.77vh !important; 
     transform: scale(1.03) !important; 
     object-fit: cover !important;
-    pointer-events: none !important; 
+    pointer-events: auto !important; 
   }
 
-  /* ── Overlays ── */
   .overlay-top {
     position: absolute; top: 0; left: 0; right: 0;
     height: 80px;
@@ -75,7 +72,6 @@
     pointer-events: none;
   }
 
-  /* ── Floating Token Status Display ── */
   .token-pill {
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid var(--gold-border);
@@ -87,7 +83,6 @@
   .token-icon { color: var(--gold); font-size: 16px; font-weight: bold; }
   .token-label { color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; }
 
-  /* ── Right-Side Cluster: Raised up higher and spaced out more ── */
   .right-actions {
     position: absolute; right: 14px; bottom: 220px;
     display: flex; flex-direction: column; align-items: center; gap: 32px;
@@ -107,7 +102,6 @@
   }
   .circle-btn:active { transform: scale(0.9); }
 
-  /* ── Info / text area ── */
   .info-area {
     position: absolute; left: 16px; bottom: 24px;
     max-width: 70%;
@@ -118,7 +112,6 @@
   .info-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
   .info-desc { font-size: 13px; color: #ccc; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
 
-  /* ── Reactions: Hidden by default until 15s before termination ── */
   .reactions-panel {
     position: absolute; left: 16px; bottom: 74px;
     display: flex; gap: 10px;
@@ -152,10 +145,8 @@
   }
   .react-emoji { font-size: 18px; }
   
-  /* ── .rcount hidden completely via structural layout display override ── */
   .rcount { display: none !important; }
 
-  /* ── Tracking Line Progress Indicator ── */
   .progress-line {
     position: absolute; bottom: 0; left: 0; right: 0;
     height: 2.5px; background: rgba(255,255,255,0.2);
@@ -167,7 +158,6 @@
     transition: width 0.2s linear;
   }
 
-  /* ── Daily pick layout ── */
   #daily-pick {
     position: absolute; inset: 0;
     background: rgba(0,0,0,0.85);
@@ -196,7 +186,6 @@
   .pick-icon { font-size: 18px; }
   .pick-label { color: #fff; font-size: 14px; text-align: left; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
-  /* ── Ad overlay ── */
   #ad-overlay {
     position: absolute; inset: 0;
     background: #000; z-index: 90;
@@ -235,63 +224,36 @@
 const YOUTUBE_API_KEY = "***REMOVED***";
 
 const YT_QUERIES = [
-  'funny animals compilation',
-  'funny videos trending',
-  'quick recipe viral',
-  'restaurant review short',
-  'trick shots highlights',
-  'sports best moments',
-  'satisfying DIY restoration',
-  'family parenting funny moments',
-  'movie recap trending',
-  'life hacks viral',
-  'street food around the world',
-  'cute baby funny moments',
-  'dance challenge trending',
-  'before and after transformation',
-  'prank reactions compilation',
-  'luxury homes and tours',
-  'car modifications satisfying',
-  'nature and wildlife amazing',
-  'street interviews funny',
-  'tv show edit trending',
-  'pet rescue heartwarming',
-  'funny pet moments',
-  'tech gadget review short',
-  'educational facts quick',
-  'personal finance tips short',
-  'AI tutorial short',
-  'travel hidden gem',
-  'makeup transformation quick',
-  'fitness workout short',
-  'ASMR satisfying videos',
-  'history facts short',
-  'science experiments satisfying',
-  'magic tricks revealed',
-  'motivational success stories',
-  'architecture and beautiful places'
+  'funny animals compilation', 'funny videos trending', 'quick recipe viral',
+  'restaurant review short', 'trick shots highlights', 'sports best moments',
+  'satisfying DIY restoration', 'family parenting funny moments', 'movie recap trending',
+  'life hacks viral', 'street food around the world', 'cute baby funny moments',
+  'dance challenge trending', 'before and after transformation', 'prank reactions compilation',
+  'luxury homes and tours', 'car modifications satisfying', 'nature and wildlife amazing',
+  'street interviews funny', 'tv show edit trending', 'pet rescue heartwarming',
+  'funny pet moments', 'tech gadget review short', 'educational facts quick',
+  'personal finance tips short', 'AI tutorial short', 'travel hidden gem',
+  'makeup transformation quick', 'fitness workout short', 'ASMR satisfying videos',
+  'history facts short', 'science experiments satisfying', 'magic tricks revealed',
+  'motivational success stories', 'architecture and beautiful places'
 ];
 
 const DM_QUERIES = [
-  'funny animals',
-  'satisfying videos',
-  'food recipe short',
-  'travel destinations',
-  'fitness transformation'
+  'funny animals', 'satisfying videos', 'food recipe short', 'travel destinations', 'fitness transformation'
 ];
 
 let slides = [];
 let currentIdx = 0;
 let players = {};
-
 let isMuted = true; 
-let isVideoPaused = false; // Internal tracking state for tap playback toggle
+let isVideoPaused = false;
+let isDailyPickOpen = false; // Guard to stop playback in background
 
 let dailyPickShown = false;
 let totalTokens = 0;
 let sessionPicks = [];
 
-let videoWatchedTime = 0; 
+let videoWatchedTime = 0; // Tracks duration for the active video
 let videoTokenTimer = null;
 let currentVideoDuration = 0;
 
@@ -300,6 +262,7 @@ let videoAdSeconds = 0;
 const AD_INTERVAL_SECONDS = 180; 
 
 let videoReactions = {}; 
+let isFetching = false;
 
 function postToGodot(data) {
   console.log("postToGodot:", data);
@@ -326,10 +289,12 @@ window.onload = function() {
 };
 
 function onYouTubeIframeAPIReady() {
-  fetchYouTubeVideos();
+  fetchYouTubeVideos(true);
 }
 
-async function fetchYouTubeVideos() {
+async function fetchYouTubeVideos(isInitial = false) {
+  if (isFetching) return;
+  isFetching = true;
   const q = YT_QUERIES[Math.floor(Math.random() * YT_QUERIES.length)];
   const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=6&type=video&q=${encodeURIComponent(q + ' #Shorts')}&key=${YOUTUBE_API_KEY}`;
 
@@ -343,18 +308,27 @@ async function fetchYouTubeVideos() {
         displayName: item.snippet.title || 'YouTube Short',
         desc: item.snippet.channelTitle || 'Trending Creator'
       }));
+      
+      const oldLength = slides.length;
       slides = slides.concat(formatted);
-      initFeed();
+      
+      if (isInitial) {
+        initFeed();
+      } else {
+        appendSlidesToDOM(oldLength, formatted);
+      }
     } else {
-      fetchDailyMotionVideos();
+      fetchDailyMotionVideos(isInitial);
     }
   } catch(e) {
     console.error(e);
-    fetchDailyMotionVideos();
+    fetchDailyMotionVideos(isInitial);
+  } finally {
+    isFetching = false;
   }
 }
 
-async function fetchDailyMotionVideos() {
+async function fetchDailyMotionVideos(isInitial = false) {
   const q = DM_QUERIES[Math.floor(Math.random() * DM_QUERIES.length)];
   const url = `https://api.dailymotion.com/videos?fields=id,title,owner.username&limit=6&search=${encodeURIComponent(q)}&flags=vertical`;
 
@@ -368,7 +342,15 @@ async function fetchDailyMotionVideos() {
         displayName: item.title || 'DailyMotion Short',
         desc: item['owner.username'] || 'Featured Creator'
       }));
+      
+      const oldLength = slides.length;
       slides = slides.concat(formatted);
+      
+      if (isInitial) {
+        initFeed();
+      } else {
+        appendSlidesToDOM(oldLength, formatted);
+      }
     }
   } catch(e) {
     console.error(e);
@@ -376,9 +358,42 @@ async function fetchDailyMotionVideos() {
 
   if (slides.length === 0) {
     showErrorScreen("Feeds temporarily unavailable. Please try again later.");
-    return; // Stop execution so initFeed() doesn't run with empty data
+    return;
   }
-  initFeed();
+}
+
+function createSlideHTML(vid, idx) {
+  let playerHtml = vid.type === 'youtube' ? 
+    `<div id="yt-player-${idx}"></div>` : 
+    `<iframe id="dm-player-${idx}" src="https://www.dailymotion.com/embed/video/${vid.id}?api=1&autoplay=1&mute=1&controls=0&sharing-enable=0&ui-start-screen-owner=0" allow="autoplay" crossorigin></iframe>`;
+
+  return `
+    <div class="overlay-top">
+      <div class="token-pill">
+        <span class="token-icon">⚡</span>
+        <span class="token-label">${totalTokens} TOKENS</span>
+      </div>
+    </div>
+    ${playerHtml}
+    <div class="overlay-bottom"></div>
+    <div class="reactions-panel" id="reacts-${idx}">
+      <div class="react-item" onclick="handleReaction('${vid.id}', '🔥', this); event.stopPropagation();"><span class="react-emoji">🔥</span><span class="rcount">0</span></div>
+      <div class="react-item" onclick="handleReaction('${vid.id}', '😴', this); event.stopPropagation();"><span class="react-emoji">😴</span><span class="rcount">0</span></div>
+      <div class="react-item" onclick="handleReaction('${vid.id}', '😂', this); event.stopPropagation();"><span class="react-emoji">😂</span><span class="rcount">0</span></div>
+      <div class="react-item" onclick="handleReaction('${vid.id}', '🤯', this); event.stopPropagation();"><span class="react-emoji">🤯</span><span class="rcount">0</span></div>
+      <div class="react-item" onclick="handleReaction('${vid.id}', '❤️', this); event.stopPropagation();"><span class="react-emoji">❤️</span><span class="rcount">0</span></div>
+    </div>
+    <div class="right-actions" onclick="event.stopPropagation();">
+      <div class="circle-btn" onclick="toggleMuteState()">${isMuted ? '🔇' : '🔊'}</div>
+      <div class="circle-btn" onclick="simulateSwipePrev()">▲</div>
+      <div class="circle-btn" onclick="simulateSwipeNext()">▼</div>
+    </div>
+    <div class="info-area">
+      <div class="info-title">${vid.displayName}</div>
+      <div class="info-desc">@${vid.desc}</div>
+    </div>
+    <div class="progress-line"><div class="progress-fill" id="pfill-${idx}"></div></div>
+  `;
 }
 
 function initFeed() {
@@ -389,71 +404,25 @@ function initFeed() {
     const slide = document.createElement('div');
     slide.className = `slide ${idx === 0 ? 'active' : ''}`;
     slide.id = `slide-${idx}`;
-
-    let playerHtml = '';
-    if (vid.type === 'youtube') {
-      playerHtml = `<div id="yt-player-${idx}"></div>`;
-    } else {
-      playerHtml = `<iframe id="dm-player-${idx}" src="https://www.dailymotion.com/embed/video/${vid.id}?api=1&autoplay=1&mute=1&controls=0&sharing-enable=0&ui-start-screen-owner=0" allow="autoplay" crossorigin></iframe>`;
-    }
-
-    slide.innerHTML = `
-      <div class="overlay-top">
-        <div class="token-pill">
-          <span class="token-icon">⚡</span>
-          <span class="token-label">0 TOKENS</span>
-        </div>
-      </div>
-      
-      ${playerHtml}
-      
-      <div class="overlay-bottom"></div>
-      
-      <div class="reactions-panel" id="reacts-${idx}">
-        <div class="react-item" onclick="handleReaction('${vid.id}', '🔥', this); event.stopPropagation();">
-          <span class="react-emoji">🔥</span>
-          <span class="rcount">0</span>
-        </div>
-        <div class="react-item" onclick="handleReaction('${vid.id}', '😴', this); event.stopPropagation();">
-          <span class="react-emoji">😴</span>
-          <span class="rcount">0</span>
-        </div>
-        <div class="react-item" onclick="handleReaction('${vid.id}', '😂', this); event.stopPropagation();">
-          <span class="react-emoji">😂</span>
-          <span class="rcount">0</span>
-        </div>
-        <div class="react-item" onclick="handleReaction('${vid.id}', '🤯', this); event.stopPropagation();">
-          <span class="react-emoji">🤯</span>
-          <span class="rcount">0</span>
-        </div>
-        <div class="react-item" onclick="handleReaction('${vid.id}', '❤️', this); event.stopPropagation();">
-          <span class="react-emoji">❤️</span>
-          <span class="rcount">0</span>
-        </div>
-      </div>
-      
-      <div class="right-actions" onclick="event.stopPropagation();">
-        <div class="circle-btn" onclick="toggleMuteState()">${isMuted ? '🔇' : '🔊'}</div>
-        <div class="circle-btn" onclick="simulateSwipePrev()">▲</div>
-        <div class="circle-btn" onclick="simulateSwipeNext()">▼</div>
-      </div>
-      
-      <div class="info-area">
-        <div class="info-title">${vid.displayName}</div>
-        <div class="info-desc">@${vid.desc}</div>
-      </div>
-      
-      <div class="progress-line"><div class="progress-fill" id="pfill-${idx}"></div></div>
-    `;
-    
+    slide.innerHTML = createSlideHTML(vid, idx);
     feed.appendChild(slide);
   });
 
-  document.querySelectorAll('.token-label').forEach(el => el.innerText = totalTokens + ' TOKENS');
-  
   loadInitialPlayer();
   startVideoAdTimer();
   setupSwipeGestures();
+}
+
+function appendSlidesToDOM(startIndex, newSlides) {
+  const feed = document.getElementById('feed');
+  newSlides.forEach((vid, i) => {
+    const idx = startIndex + i;
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.id = `slide-${idx}`;
+    slide.innerHTML = createSlideHTML(vid, idx);
+    feed.appendChild(slide);
+  });
 }
 
 function loadInitialPlayer() {
@@ -472,17 +441,12 @@ function loadYTPlayer(idx) {
     videoId: slides[idx].id,
     playerVars: {
       'autoplay': 1, 'controls': 0, 'rel': 0, 'showinfo': 0,
-      'modestbranding': 1, 'playsinline': 1, 'iv_load_policy': 3,
-      'vq': 'hd720' 
+      'modestbranding': 1, 'playsinline': 1, 'iv_load_policy': 3, 'vq': 'hd720' 
     },
     events: {
       'onReady': (e) => {
-        if (isMuted) {
-          e.target.mute();
-        } else {
-          e.target.unmute();
-        }
-        if (idx === currentIdx) {
+        if (isMuted) e.target.mute(); else e.target.unmute();
+        if (idx === currentIdx && !isDailyPickOpen) {
           e.target.playVideo();
           isVideoPaused = false;
           startVideoTokenTimer();
@@ -517,33 +481,31 @@ function toggleMuteState() {
   });
 
   const currentVideo = slides[currentIdx];
-  if (currentVideo.type === 'youtube' && players[currentIdx] && typeof players[currentIdx].mute === 'function') {
+  if (currentVideo.type === 'youtube' && players[currentIdx]) {
     if (isMuted) {
       players[currentIdx].mute();
     } else {
       players[currentIdx].unmute();
+      // Forces playback fallback if browser strict policies paused it during unmuting
+      if (players[currentIdx].getPlayerState() !== 1 && !isDailyPickOpen) {
+         players[currentIdx].playVideo();
+      }
     }
   } else if (currentVideo.type === 'dailymotion') {
     const iframe = document.getElementById(`dm-player-${currentIdx}`);
     if (iframe && iframe.contentWindow) {
-      const msg = isMuted ? 'mute' : 'unmute';
-      iframe.contentWindow.postMessage(JSON.stringify({ command: msg }), '*');
+      iframe.contentWindow.postMessage(JSON.stringify({ command: isMuted ? 'mute' : 'unmute' }), '*');
     }
   }
 }
 
 function handleReaction(videoId, emoji, element) {
   if (videoReactions[videoId]) return; 
-
   videoReactions[videoId] = emoji;
   
   const parent = element.parentElement;
   parent.querySelectorAll('.react-item').forEach(item => {
-    if (item === element) {
-      item.classList.add('selected');
-    } else {
-      item.classList.add('disabled');
-    }
+    if (item === element) item.classList.add('selected'); else item.classList.add('disabled');
   });
 
   addTokens(2, 'video reaction');
@@ -563,6 +525,7 @@ function pauseActiveVideo() {
 }
 
 function playActiveVideo() {
+  if (isDailyPickOpen) return; // Block background playback
   const nextVideo = slides[currentIdx];
   if (nextVideo.type === 'youtube') {
     if (!players[currentIdx]) {
@@ -577,11 +540,7 @@ function playActiveVideo() {
     setupDMMessaging(currentIdx);
     const iframe = document.getElementById(`dm-player-${currentIdx}`);
     if (iframe && iframe.contentWindow) {
-      if (isMuted) {
-        iframe.contentWindow.postMessage(JSON.stringify({ command: 'mute' }), '*');
-      } else {
-        iframe.contentWindow.postMessage(JSON.stringify({ command: 'unmute' }), '*');
-      }
+      iframe.contentWindow.postMessage(JSON.stringify({ command: isMuted ? 'mute' : 'unmute' }), '*');
       iframe.contentWindow.postMessage(JSON.stringify({ command: 'play' }), '*');
     }
     isVideoPaused = false;
@@ -590,6 +549,7 @@ function playActiveVideo() {
 }
 
 function togglePlayPause() {
+  if (isDailyPickOpen) return;
   if (isVideoPaused) {
     playActiveVideo();
   } else {
@@ -609,10 +569,16 @@ function simulateSwipeNext() {
   currentIdx++;
   document.getElementById(`slide-${currentIdx}`).classList.add('active');
 
-  playActiveVideo();
+  // Trigger pagination automatically 2 slides before reaching the absolute end
+  if (slides.length - currentIdx <= 2) {
+    fetchYouTubeVideos(false);
+  }
 
-  if (currentIdx === 3) {
+  // Handle daily pick routing accurately without overlaying audio backgrounds
+  if (currentIdx === 3 && !dailyPickShown) {
     triggerDailyPick();
+  } else {
+    playActiveVideo();
   }
 }
 
@@ -631,9 +597,7 @@ function simulateSwipePrev() {
 
 function setupSwipeGestures() {
   const feed = document.getElementById('feed');
-  let startY = null;
-  let startX = null;
-  let startTime = null;
+  let startY = null, startX = null, startTime = null;
 
   feed.addEventListener('touchstart', e => {
     startY = e.touches[0].clientY;
@@ -650,52 +614,42 @@ function setupSwipeGestures() {
     const dx = startX - endX;
     const elapsedTime = Date.now() - startTime;
 
-    // Differentiate swipe gesture from tap gesture
     if (Math.abs(dy) > 45 && Math.abs(dy) > Math.abs(dx)) {
-      if (dy > 0) {
-        simulateSwipeNext();
-      } else {
-        simulateSwipePrev();
-      }
+      if (dy > 0) simulateSwipeNext(); else simulateSwipePrev();
     } else if (Math.abs(dy) < 10 && Math.abs(dx) < 10 && elapsedTime < 300) {
-      // Confirmed rapid tap interaction on clean window space
       togglePlayPause();
     }
-    
-    startY = null;
-    startX = null;
-    startTime = null;
+    startY = null; startX = null; startTime = null;
   }, { passive: true });
 }
 
 function startVideoTokenTimer() {
   if (videoTokenTimer) clearInterval(videoTokenTimer);
+  videoWatchedTime = 0; // Fixed: Always clear past view parameters completely on init loops
   
   videoTokenTimer = setInterval(() => {
     videoWatchedTime++;
     
     let pct = 0;
-    let timeLeft = 30; 
     const cur = slides[currentIdx];
     
     if (cur.type === 'youtube' && players[currentIdx] && typeof players[currentIdx].getDuration === 'function') {
       currentVideoDuration = players[currentIdx].getDuration() || 30;
       const curTime = players[currentIdx].getCurrentTime() || 0;
       pct = (curTime / currentVideoDuration) * 100;
-      timeLeft = currentVideoDuration - curTime;
     } else {
       currentVideoDuration = 30;
       pct = (videoWatchedTime / currentVideoDuration) * 100;
-      timeLeft = currentVideoDuration - videoWatchedTime;
     }
     if (pct > 100) pct = 100;
 
     const fillEl = document.getElementById(`pfill-${currentIdx}`);
     if (fillEl) fillEl.style.width = pct + '%';
 
+    // Fixed panel display: shows reactions after exactly 5 seconds
     const reactPanel = document.getElementById(`reacts-${currentIdx}`);
     if (reactPanel) {
-      if (timeLeft <= 15) {
+      if (videoWatchedTime >= 5) {
         reactPanel.classList.add('visible');
       } else {
         reactPanel.classList.remove('visible');
@@ -738,13 +692,13 @@ function resumePlayback() {
   playActiveVideo();
 }
 
-function fmtTime(s) {
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-}
-
 function triggerDailyPick() {
   if (dailyPickShown) return;
   dailyPickShown = true;
+  isDailyPickOpen = true;
+  
+  stopVideoTokenTimer();
+  pauseActiveVideo(); // Stops background playback completely
   
   const pool = slides.slice(0, 3);
   const opts = pool.map(v => ({ id: v.id, label: v.displayName }));
@@ -771,24 +725,15 @@ function choosePick(el, chosen, all) {
 
   setTimeout(() => {
     document.getElementById('daily-pick').classList.remove('open');
+    isDailyPickOpen = false; // Disables guard
+    playActiveVideo();       // Launches current index clip cleanly
   }, 600);
 }
 
 function showErrorScreen(message) {
   const feed = document.getElementById('feed');
   feed.innerHTML = `
-    <div style="
-      position: absolute; 
-      inset: 0; 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-      justify-content: center; 
-      color: #aaa; 
-      padding: 20px; 
-      text-align: center;
-      font-family: sans-serif;
-    ">
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #aaa; padding: 20px; text-align: center; font-family: sans-serif;">
       <span style="font-size: 40px; margin-bottom: 12px;">⚠️</span>
       <p style="font-size: 16px; font-weight: 500; margin-bottom: 8px; color: #fff;">Connection Error</p>
       <p style="font-size: 13px; max-width: 260px; line-height: 1.4;">${message}</p>
