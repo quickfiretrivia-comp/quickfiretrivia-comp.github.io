@@ -235,7 +235,7 @@ const YT_QUERIES = [
   'personal finance tips short', 'AI tutorial short', 'travel hidden gem',
   'makeup transformation quick', 'fitness workout short', 'ASMR satisfying videos',
   'history facts short', 'science experiments satisfying', 'magic tricks revealed',
-  'motivational success stories', 'architecture and beautiful places'
+  'motivational success stories', 'architecture and beautiful places', 'education'
 ];
 
 const DM_QUERIES = [
@@ -598,16 +598,20 @@ function simulateSwipePrev() {
 function setupSwipeGestures() {
   const feed = document.getElementById('feed');
   let startY = null, startX = null, startTime = null;
+  let startedOnControl = false;
 
   feed.addEventListener('touchstart', e => {
+    startedOnControl = !!e.target.closest('.right-actions, .reactions-panel, #daily-pick, #ad-overlay');
+    if (startedOnControl) return;
     startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
     startTime = Date.now();
   }, { passive: true });
 
   feed.addEventListener('touchend', e => {
+    if (startedOnControl) { startedOnControl = false; return; }
     if (startY === null || startX === null || startTime === null) return;
-    
+
     const endY = e.changedTouches[0].clientY;
     const endX = e.changedTouches[0].clientX;
     const dy = startY - endY;
@@ -622,7 +626,6 @@ function setupSwipeGestures() {
     startY = null; startX = null; startTime = null;
   }, { passive: true });
 }
-
 function startVideoTokenTimer() {
   if (videoTokenTimer) clearInterval(videoTokenTimer);
   videoWatchedTime = 0; // Fixed: Always clear past view parameters completely on init loops
