@@ -221,22 +221,6 @@
 </div>
 
 <script>
-const YOUTUBE_API_KEY = "***REMOVED***";
-
-const YT_QUERIES = [
-  'funny animals compilation', 'funny videos trending', 'quick recipe viral',
-  'restaurant review short', 'trick shots highlights', 'sports best moments',
-  'satisfying DIY restoration', 'family parenting funny moments', 'movie recap trending',
-  'life hacks viral', 'street food around the world', 'cute baby funny moments',
-  'dance challenge trending', 'before and after transformation', 'prank reactions compilation',
-  'luxury homes and tours', 'car modifications satisfying', 'nature and wildlife amazing',
-  'street interviews funny', 'tv show edit trending', 'pet rescue heartwarming',
-  'funny pet moments', 'tech gadget review short', 'educational facts quick',
-  'personal finance tips short', 'AI tutorial short', 'travel hidden gem',
-  'makeup transformation quick', 'fitness workout short', 'ASMR satisfying videos',
-  'history facts short', 'science experiments satisfying', 'magic tricks revealed',
-  'motivational success stories', 'architecture and beautiful places', 'education'
-];
 
 const DM_QUERIES = [
   'funny animals', 'satisfying videos', 'food recipe short', 'travel destinations', 'fitness transformation'
@@ -263,7 +247,8 @@ const AD_INTERVAL_SECONDS = 180;
 
 let videoReactions = {}; 
 let isFetching = false;
-
+let servedVideoIds = [];
+ 
 function postToGodot(data) {
   console.log("postToGodot:", data);
   if (typeof window.JavaScriptBridge !== 'undefined' && window.JavaScriptBridge.postToGodot) {
@@ -288,78 +273,36 @@ window.onload = function() {
   firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 };
 
-function onYouTubeIframeAPIReady() {
-  fetchYouTubeVideos(true);
-}
 
-async function fetchYouTubeVideos(isInitial = false) {
-  if (isFetching) return;
-  isFetching = true;
-  const q = YT_QUERIES[Math.floor(Math.random() * YT_QUERIES.length)];
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=6&type=video&q=${encodeURIComponent(q + ' #Shorts')}&key=${YOUTUBE_API_KEY}`;
 
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data && data.items && data.items.length > 0) {
-      const formatted = data.items.map(item => ({
-        type: 'youtube',
-        id: item.id.videoId,
-        displayName: item.snippet.title || 'YouTube Short',
-        desc: item.snippet.channelTitle || 'Trending Creator'
-      }));
-      
-      const oldLength = slides.length;
-      slides = slides.concat(formatted);
-      
-      if (isInitial) {
+
+// Fired directly by Godot's executeJavaScript command string
+function receiveVideosFromGodot(videoArray) {
+    if (!videoArray || videoArray.length === 0) {
+        showErrorScreen("No videos available right now. Please check back later.");
+        return;
+    }
+    servedVideoIds.push(...videoArray.map(v => v.id));   // <-- add this line
+
+    const oldLength = slides.length;
+    slides = slides.concat(videoArray);
+
+    if (oldLength === 0) {
         initFeed();
-      } else {
-        appendSlidesToDOM(oldLength, formatted);
-      }
     } else {
-      fetchDailyMotionVideos(isInitial);
+        appendSlidesToDOM(oldLength, videoArray);
     }
-  } catch(e) {
-    console.error(e);
-    fetchDailyMotionVideos(isInitial);
-  } finally {
-    isFetching = false;
-  }
 }
 
-async function fetchDailyMotionVideos(isInitial = false) {
-  const q = DM_QUERIES[Math.floor(Math.random() * DM_QUERIES.length)];
-  const url = `https://api.dailymotion.com/videos?fields=id,title,owner.username&limit=6&search=${encodeURIComponent(q)}&flags=vertical`;
+// Keep your swipe loop clean. Update your pagination trigger function to look like this:
+function checkPaginationPool(currentIndex) {
+  postToGodot({ type: 'request_more_videos', served_ids: servedVideoIds.slice(-100) });
+}
 
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data && data.list && data.list.length > 0) {
-      const formatted = data.list.map(item => ({
-        type: 'dailymotion',
-        id: item.id,
-        displayName: item.title || 'DailyMotion Short',
-        desc: item['owner.username'] || 'Featured Creator'
-      }));
-      
-      const oldLength = slides.length;
-      slides = slides.concat(formatted);
-      
-      if (isInitial) {
-        initFeed();
-      } else {
-        appendSlidesToDOM(oldLength, formatted);
-      }
-    }
-  } catch(e) {
-    console.error(e);
-  }
-
-  if (slides.length === 0) {
-    showErrorScreen("Feeds temporarily unavailable. Please try again later.");
-    return;
-  }
+function onYouTubeIframeAPIReady() {
+  // No fetching here — Godot pushes the initial batch via receiveVideosFromGodot().
+  // This just tells Godot the page's JS environment (incl. the YT player API) is ready.
+  postToGodot({ type: 'player_ready' });
 }
 
 function createSlideHTML(vid, idx) {
@@ -571,7 +514,7 @@ function simulateSwipeNext() {
 
   // Trigger pagination automatically 2 slides before reaching the absolute end
   if (slides.length - currentIdx <= 2) {
-    fetchYouTubeVideos(false);
+    checkPaginationPool(currentIdx);
   }
 
   // Handle daily pick routing accurately without overlaying audio backgrounds
