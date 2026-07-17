@@ -503,7 +503,10 @@ function togglePlayPause() {
 }
 
 function simulateSwipeNext() {
-  if (currentIdx >= slides.length - 1) return;
+ if (videoWatchedTime >= 3 && slides[currentIdx]) {
+  postToGodot({ type: 'stamp', id: slides[currentIdx].id, timestamp: videoWatchedTime, displayName: slides[currentIdx].displayName });
+ } 
+ if (currentIdx >= slides.length - 1) return;
 
   stopVideoTokenTimer();
   pauseActiveVideo();
@@ -526,7 +529,10 @@ function simulateSwipeNext() {
 }
 
 function simulateSwipePrev() {
-  if (currentIdx <= 0) return;
+ if (videoWatchedTime >= 3 && slides[currentIdx]) {
+  postToGodot({ type: 'stamp', id: slides[currentIdx].id, timestamp: videoWatchedTime, displayName: slides[currentIdx].displayName });
+ } 
+ if (currentIdx <= 0) return;
 
   stopVideoTokenTimer();
   pauseActiveVideo();
