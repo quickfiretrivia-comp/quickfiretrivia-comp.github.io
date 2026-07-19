@@ -646,47 +646,69 @@ async function fetchPodcastViaWorker(podcastName, category) {
   }
 }
 
-// ── LibriVox audiobook fetch ──────────────────────────────────────────────────
-// Fetches up to 3 books per genre. Uses extended=1 to get chapter-level tracks.
+// ── Audiobook fetch (Internet Archive mirror of the LibriVox collection) ──
+// Internet Archive hosts the same LibriVox recordings, is far more reliable
+// than librivox.org's own API, and sends proper CORS headers.
 async function fetchLibriVoxGenre(genre, category) {
   try {
-    const url = `https://librivox.org/api/feed/audiobooks/?genre=${encodeURIComponent(genre)}&extended=1&format=json&limit=3`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data.books || data.books.length === 0) return null;
+    // 1) Search IA for up to 3 LibriVox recordings tagged with this subject/genre
+    const searchUrl =
+      'https://archive.org/advancedsearch.php?q=' +
+      encodeURIComponent(`collection:(librivoxaudio) AND subject:("${genre}")`) +
+      '&fl[]=identifier&fl[]=title&fl[]=creator&rows=3&page=1&output=json';
 
-    const results = [];
-    data.books.forEach(book => {
-      const author = book.authors && book.authors[0]
-        ? book.authors[0].first_name + ' ' + book.authors[0].last_name
-        : 'Unknown';
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) return null;
+    const searchData = await searchRes.json();
+    const docs = (searchData && searchData.response && searchData.response.docs) || [];
+    if (docs.length === 0) return null;
 
-      // Get cover art from Open Library using the book title
-      const coverQuery = encodeURIComponent(book.title);
-      const coverUrl = `https://covers.openlibrary.org/b/title/${coverQuery}-M.jpg`;
+    // 2) For each result, read its file list to get a real playable mp3 URL
+    const bookPromises = docs.map(async (doc) => {
+      try {
+        const metaRes = await fetch(`https://archive.org/metadata/${doc.identifier}`);
+        if (!metaRes.ok) return null;
+        const meta = await metaRes.json();
+        const files = meta.files || [];
 
-      // Use first chapter as the default playable track
-      const firstSection = book.sections && book.sections[0];
-      if (!firstSection || !firstSection.listen_url) return;
+        // Keep only actual mp3 chapter files, sorted so chapter 1 comes first
+        const mp3Files = files
+          .filter(f => f.name && /\.mp3$/i.test(f.name) && f.format && /mp3/i.test(f.format))
+          .sort((a, b) => a.name.localeCompare(b.name));
 
-      results.push({
-        id: 'lv_' + book.id,
-        type: 'book',
-        title: book.title,
-        author: author,
-        episode: firstSection.title || 'Chapter 1',
-        stream: firstSection.listen_url,
-        coverUrl: coverUrl,
-        icon: '📚',
-        category: category,
-        sections: book.sections || [],   // all chapters stored for future chapter navigation
-        totaltime: book.totaltime || null
-      });
+        if (mp3Files.length === 0) return null;
+
+        const firstFile = mp3Files[0];
+        const baseUrl = `https://archive.org/download/${doc.identifier}/`;
+        const author = Array.isArray(doc.creator) ? doc.creator[0] : (doc.creator || 'Unknown');
+
+        return {
+          id: 'ia_' + doc.identifier,
+          type: 'book',
+          title: doc.title || 'Untitled',
+          author: author,
+          episode: firstFile.title || 'Chapter 1',
+          stream: baseUrl + encodeURIComponent(firstFile.name),
+          coverUrl: `https://archive.org/services/img/${doc.identifier}`,
+          icon: '📚',
+          category: category,
+          sections: mp3Files.map(f => ({
+            title: f.title || f.name,
+            listen_url: baseUrl + encodeURIComponent(f.name)
+          })),
+          totaltime: null
+        };
+      } catch (e) {
+        console.warn('IA metadata fetch failed for', doc.identifier, e);
+        return null;
+      }
     });
-    return results;
-  } catch(e) {
-    console.warn('LibriVox fetch failed for genre', genre, e);
+
+    const books = (await Promise.all(bookPromises)).filter(Boolean);
+    return books.length > 0 ? books : null;
+
+  } catch (e) {
+    console.warn('Internet Archive fetch failed for genre', genre, e);
     return null;
   }
 }
