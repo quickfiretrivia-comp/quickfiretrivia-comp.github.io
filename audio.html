@@ -507,11 +507,24 @@ async function buildLists() {
   renderFilteredList('books-list',   bookData,    activeBookCategory,    bookSearchQuery);
 
   // Fetch podcasts via Cloudflare Worker in parallel
-  const podcastPromises = SEED_PODCASTS.map(p => fetchPodcastViaWorker(p.name, p.category));
-  const bookPromises    = SEED_BOOK_GENRES.map(g => fetchLibriVoxGenre(g.genre, g.category));
+  // Fetch podcasts via Cloudflare Worker — staggered to stay under
+// iTunes Search API's burst rate limit (firing all 15 at once gets most of
+// them rejected with a non-200, which the Worker correctly reports as a
+// "502 iTunes lookup failed").
+function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
 
+async function fetchPodcastsStaggered(seedList, spacingMs = 400) {
+  const results = [];
+  for (let i = 0; i < seedList.length; i++) {
+    const p = seedList[i];
+    results.push(fetchPodcastViaWorker(p.name, p.category));
+    if (i < seedList.length - 1) await delay(spacingMs);
+  }
+  return Promise.allSettled(results);
+}
+  const bookPromises = SEED_BOOK_GENRES.map(g => fetchLibriVoxGenre(g.genre, g.category));
   const [podcastResults, bookResults] = await Promise.all([
-    Promise.allSettled(podcastPromises),
+    fetchPodcastsStaggered(SEED_PODCASTS, 400),   // ~400ms between each iTunes lookup
     Promise.allSettled(bookPromises)
   ]);
 
