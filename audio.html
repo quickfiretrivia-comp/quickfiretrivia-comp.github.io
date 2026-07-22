@@ -412,6 +412,12 @@ const CF_WORKER_URL = 'https://white-cherry-77a6.barakirungu.workers.dev/';
 // 15 curated podcast names — these are fetched via your Cloudflare Worker
 // which calls the iTunes Search API and parses the RSS feed server-side.
 // They seed the Podcasts list on load. User can also search for any podcast.
+// NOTE: this list is now just documentation of what the preloader Worker
+// fetches — it is not read by this page anymore. The single source of
+// truth is the SEED_PODCASTS array inside podcast-preloader-worker.js and
+// podcast-reader-worker.js. If you add/remove/rename a podcast, edit it
+// there (in both files, they must match) and redeploy — editing it here
+// does nothing.
 const SEED_PODCASTS = [
   { name: 'The Daily',                  category: 'News & Journalism' },
   { name: 'Huberman Lab',               category: 'Health & Wellness' },
@@ -479,13 +485,14 @@ const LIBRIVOX_BOOKS = [
     stream: 'https://ia800204.us.archive.org/11/items/pride_and_prejudice_librivox/prideandprejudice_01_austen.mp3' }
 ];
 
-// Public RSS podcast samples (CORS-friendly proxied where needed)
-const PODCAST_FEEDS = [
-  { id: 'pod1', title: 'Huberman Lab', author: 'Andrew Huberman', episode: 'Episode 1', icon: '🧠', type: 'podcast',
-    stream: 'https://dts.podtrac.com/redirect.mp3/chtbl.com/track/GE54G8/cdn.hubermanlab.com/hubermanlab2.mp3' },
-  { id: 'pod2', title: 'TED Talks Daily', author: 'TED', episode: 'Ken Robinson — Do schools kill creativity?', icon: '💡', type: 'podcast',
-    stream: 'https://dts.podtrac.com/redirect.mp3/download.ted.com/talks/KenRobinson_2006.mp3' }
-];
+// NOTE: previously this held two hardcoded "placeholder" podcast entries
+// with podtrac.com redirect URLs baked in as the stream. Those were never
+// verified against the shows' actual current feeds, they duplicated the
+// real Huberman Lab entry once the live Worker fetch succeeded (same
+// title, different id), and they're the "two placeholder podcasts with no
+// content" you were seeing. Removed in favor of the loading state below
+// plus the real Worker-driven fetch, which is the only source of truth now.
+const PODCAST_FEEDS = [];
 
 // ALL_TRACKS is mutable — rebuilt after live fetch completes
 let ALL_TRACKS = [...LIBRIVOX_BOOKS, ...PODCAST_FEEDS];
@@ -511,28 +518,50 @@ async function buildLists() {
 // iTunes Search API's burst rate limit (firing all 15 at once gets most of
 // them rejected with a non-200, which the Worker correctly reports as a
 // "502 iTunes lookup failed").
-function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
-
-async function fetchPodcastsStaggered(seedList, spacingMs = 400) {
-  const results = [];
-  for (let i = 0; i < seedList.length; i++) {
-    const p = seedList[i];
-    results.push(fetchPodcastViaWorker(p.name, p.category));
-    if (i < seedList.length - 1) await delay(spacingMs);
+// NOTE: podcasts are no longer fetched one-by-one from this client. A
+// separate Cron-triggered Worker preloads all 15 seed podcasts into
+// Cloudflare KV on a rolling schedule (one every 30 min), and this single
+// call just reads whatever's already been resolved. No iTunes call ever
+// happens on this request path, so there's nothing here to rate-limit.
+async function fetchPreloadedPodcasts() {
+  try {
+    const res = await fetch(`${CF_WORKER_URL}podcasts`);
+    if (!res.ok) {
+      console.warn('Preloaded podcasts fetch failed:', res.status);
+      return [];
+    }
+    const docs = await res.json();
+    const items = [];
+    docs.forEach(doc => {
+      if (!doc.episodes || doc.episodes.length === 0) return;
+      doc.episodes.slice(0, 3).forEach((ep, i) => {
+        items.push({
+          id: 'pod_' + (doc.name || 'podcast').replace(/\s+/g, '_').toLowerCase() + '_' + i,
+          type: 'podcast',
+          title: doc.title || doc.name,
+          author: doc.author || '',
+          episode: ep.title,
+          stream: ep.stream,
+          coverUrl: doc.coverUrl || null,
+          icon: '🎙️',
+          category: doc.category,
+          duration: ep.duration || null
+        });
+      });
+    });
+    return items;
+  } catch (e) {
+    console.warn('Preloaded podcasts fetch failed:', e);
+    return [];
   }
-  return Promise.allSettled(results);
 }
   const bookPromises = SEED_BOOK_GENRES.map(g => fetchLibriVoxGenre(g.genre, g.category));
-  const [podcastResults, bookResults] = await Promise.all([
-    fetchPodcastsStaggered(SEED_PODCASTS, 400),   // ~400ms between each iTunes lookup
+  const [newPodcasts, bookResults] = await Promise.all([
+    fetchPreloadedPodcasts(),   // single call — all 15 already resolved in KV
     Promise.allSettled(bookPromises)
   ]);
 
   // Merge successful results, deduplicate by id
-  const newPodcasts = podcastResults
-    .filter(r => r.status === 'fulfilled' && r.value)
-    .map(r => r.value)
-    .flat();
   const newBooks = bookResults
     .filter(r => r.status === 'fulfilled' && r.value)
     .map(r => r.value)
@@ -629,35 +658,10 @@ function renderFilteredList(containerId, items, category, query) {
   });
 }
 
-// ── Podcast fetch via your Cloudflare Worker ──────────────────────────────────
-// Your Worker should accept ?podcast=NAME and return JSON:
-// { title, author, coverUrl, category, episodes: [{ id, title, stream, duration }] }
-async function fetchPodcastViaWorker(podcastName, category) {
-  try {
-    const url = `${CF_WORKER_URL}?podcast=${encodeURIComponent(podcastName)}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data || !data.episodes || data.episodes.length === 0) return null;
-
-    // Return one item per episode, each playable independently
-    return data.episodes.slice(0, 3).map((ep, i) => ({
-      id: 'pod_' + podcastName.replace(/\s+/g, '_').toLowerCase() + '_' + i,
-      type: 'podcast',
-      title: data.title || podcastName,
-      author: data.author || '',
-      episode: ep.title,
-      stream: ep.stream,
-      coverUrl: data.coverUrl || null,
-      icon: '🎙️',
-      category: category,
-      duration: ep.duration || null
-    }));
-  } catch(e) {
-    console.warn('Podcast fetch failed for', podcastName, e);
-    return null;
-  }
-}
+// NOTE: the old per-podcast fetchPodcastViaWorker(name) function that lived
+// here has been removed. It's no longer called anywhere — podcasts now come
+// from the single fetchPreloadedPodcasts() call above, which reads results
+// a separate Cron Worker already preloaded into KV. See SETUP.md.
 
 // ── Audiobook fetch (Internet Archive mirror of the LibriVox collection) ──
 // Internet Archive hosts the same LibriVox recordings, is far more reliable
