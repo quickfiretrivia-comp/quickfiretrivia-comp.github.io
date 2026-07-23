@@ -44,13 +44,10 @@
 
   /* Fixed pointer-events so browser can register user interaction signals */
   .slide iframe, .slide video {
-    width: 100vw !important;
-    height: 56.25vw !important; 
-    min-height: 100vh !important;
-    min-width: 177.77vh !important; 
-    transform: scale(1.03) !important; 
+    width: 100% !important;
+    height: 100% !important;
     object-fit: cover !important;
-    pointer-events: auto !important; 
+    pointer-events: auto !important;
   }
 
   .overlay-top {
@@ -233,7 +230,7 @@ let isMuted = true;
 let isVideoPaused = false;
 let isDailyPickOpen = false; // Guard to stop playback in background
 
-let dailyPickShown = false;
+let nextDailyPickIndex = 3;
 let totalTokens = 0;
 let sessionPicks = [];
 
@@ -271,6 +268,17 @@ window.onload = function() {
   tag.src = "https://www.youtube.com/iframe_api";
   const firstScriptTag = document.getElementsByTagName('script')[0];
   firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+  // Single global listener for Dailymotion events
+  window.addEventListener('message', (e) => {
+    if (!e.origin.includes('dailymotion.com')) return;
+    try {
+      const data = JSON.parse(e.data);
+      if (data.event === 'videoend') {
+        simulateSwipeNext();
+      }
+    } catch(err){}
+  });
 };
 
 
@@ -372,7 +380,6 @@ function loadInitialPlayer() {
   if (slides[0].type === 'youtube') {
     loadYTPlayer(0);
   } else {
-    setupDMMessaging(0);
     startVideoTokenTimer();
   }
 }
@@ -396,8 +403,16 @@ function loadYTPlayer(idx) {
         }
       },
       'onStateChange': (e) => {
-        if (e.data === YT.PlayerState.ENDED && idx === currentIdx) {
-          simulateSwipeNext();
+        if (idx === currentIdx) {
+          if (e.data === YT.PlayerState.PLAYING) {
+            isVideoPaused = false;
+            startVideoTokenTimer();
+          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.BUFFERING) {
+            stopVideoTokenTimer();
+          } else if (e.data === YT.PlayerState.ENDED) {
+            stopVideoTokenTimer();
+            simulateSwipeNext();
+          }
         }
       }
     }
@@ -521,11 +536,13 @@ function simulateSwipeNext() {
   }
 
   // Handle daily pick routing accurately without overlaying audio backgrounds
-  if (currentIdx === 3 && !dailyPickShown) {
-    triggerDailyPick();
-  } else {
-    playActiveVideo();
-  }
+  // Triggers every 3 slides using your incremental target tracker
+ if (currentIdx >= nextDailyPickIndex) {
+   nextDailyPickIndex += 3;
+   triggerDailyPick();
+ } else {
+   playActiveVideo();
+ }
 }
 
 function simulateSwipePrev() {
@@ -645,14 +662,14 @@ function resumePlayback() {
 }
 
 function triggerDailyPick() {
-  if (dailyPickShown) return;
-  dailyPickShown = true;
   isDailyPickOpen = true;
-  
+
   stopVideoTokenTimer();
-  pauseActiveVideo(); // Stops background playback completely
-  
-  const pool = slides.slice(0, 3);
+  pauseActiveVideo();
+
+  // Grabs the 3 videos watched prior to reaching this index
+  const startIdx = Math.max(0, currentIdx - 3);
+  const pool = slides.slice(startIdx, currentIdx);
   const opts = pool.map(v => ({ id: v.id, label: v.displayName }));
   const container = document.getElementById('pick-options');
   container.innerHTML = '';
