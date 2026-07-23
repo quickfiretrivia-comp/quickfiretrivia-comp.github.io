@@ -23,10 +23,11 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
-  /* ── Tabs ── */
+  /* ── Tabs (Shifted Down Slightly) ── */
   #tabs {
     display: flex; justify-content: center; gap: 0;
-    padding: 16px 0 0;
+    margin-top: 38px; /* Moves tab navigation down slightly */
+    padding: 10px 0 0;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     position: sticky; top: 0; z-index: 30;
     background: #0d1117;
@@ -39,7 +40,7 @@
   }
   .tab.active { color: #fff; border-bottom-color: #fff; }
 
-  /* ── Token badge (fixed top right) ── */
+  /* ── Token badge (Fixed Top Right) ── */
   #token-badge {
     position: fixed; top: 14px; right: 14px; z-index: 40;
     background: var(--gold-dim);
@@ -52,7 +53,7 @@
 
   /* ── Player panel ── */
   #player-panel {
-    padding: 24px 20px 100px;
+    padding: 20px 20px 100px;
     display: flex; flex-direction: column; align-items: center; gap: 20px;
   }
 
@@ -137,23 +138,52 @@
   #done-btn span { color: rgba(255,255,255,0.7); font-size: 13px; }
   #done-btn:active { background: rgba(255,255,255,0.12); }
 
-  /* ── Feed list ── */
-  #feed-list {
+  /* ── Grouped Accordion List Styling ── */
+  #feed-list, #podcast-list, #books-list {
     padding: 0 0 80px;
   }
+  
+  .podcast-group {
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  
+  .podcast-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; cursor: pointer;
+    background: rgba(255,255,255,0.02);
+    transition: background 0.15s;
+  }
+  .podcast-header:active { background: rgba(255,255,255,0.06); }
+  
+  .podcast-arrow {
+    font-size: 11px; color: rgba(255,255,255,0.4);
+    transition: transform 0.2s;
+  }
+  .podcast-group.open .podcast-arrow {
+    transform: rotate(90deg);
+  }
+
+  .episodes-container {
+    display: none;
+    background: rgba(0,0,0,0.25);
+  }
+  .podcast-group.open .episodes-container {
+    display: block;
+  }
+
   .feed-item {
     display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 12px 16px 12px 32px;
+    border-top: 1px solid rgba(255,255,255,0.04);
     cursor: pointer; transition: background 0.15s;
     touch-action: manipulation;
   }
-  .feed-item:active { background: rgba(255,255,255,0.04); }
-  .feed-item.playing { background: rgba(114,9,183,0.12); }
+  .feed-item:active { background: rgba(255,255,255,0.08); }
+  .feed-item.playing { background: rgba(114,9,183,0.2); }
   .feed-thumb {
-    width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+    width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0;
     background: linear-gradient(135deg,#3a1c71,#d76d77);
-    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
   }
   .feed-meta { flex: 1; min-width: 0; }
   .feed-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
@@ -211,7 +241,7 @@
   /* ── Search bar ── */
   .search-wrap {
     padding: 10px 14px 6px;
-    position: sticky; top: 53px; z-index: 25;
+    position: sticky; top: 88px; z-index: 25;
     background: #0d1117;
   }
   .search-input-row {
@@ -398,46 +428,16 @@ let currentTrack  = null;
 let currentView   = 'player';
 
 // ── Content data stores ───────────────────────────────────────────────────────
-let podcastData = [];          // all loaded podcasts (raw, unfiltered)
-let bookData    = [];          // all loaded audiobooks (raw, unfiltered)
+let podcastData = [];          // Holds grouped show objects
+let bookData    = [];          // Holds audiobooks
 let activePodcastCategory = 'All';
 let activeBookCategory    = 'All';
 let podcastSearchQuery    = '';
 let bookSearchQuery       = '';
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-// Your Cloudflare Worker URL — replace with your actual deployed Worker URL
 const CF_WORKER_URL = 'https://white-cherry-77a6.barakirungu.workers.dev/';
 
-// 15 curated podcast names — these are fetched via your Cloudflare Worker
-// which calls the iTunes Search API and parses the RSS feed server-side.
-// They seed the Podcasts list on load. User can also search for any podcast.
-// NOTE: this list is now just documentation of what the preloader Worker
-// fetches — it is not read by this page anymore. The single source of
-// truth is the SEED_PODCASTS array inside podcast-preloader-worker.js and
-// podcast-reader-worker.js. If you add/remove/rename a podcast, edit it
-// there (in both files, they must match) and redeploy — editing it here
-// does nothing.
-const SEED_PODCASTS = [
-  { name: 'The Daily',                  category: 'News & Journalism' },
-  { name: 'Huberman Lab',               category: 'Health & Wellness' },
-  { name: 'Crime Junkie',               category: 'True Crime' },
-  { name: 'How I Built This',           category: 'Business & Entrepreneurship' },
-  { name: 'ShxtsnGigs Podcast',         category: 'Commentary'},
-  { name: 'The Tim Ferriss Show',       category: 'Personal Development & Motivation' },
-  { name: 'Stuff You Should Know',      category: 'Education & Learning' },
-  { name: 'Freakonomics Radio',         category: 'Society & Culture' },
-  { name: 'My Favorite Murder',         category: 'True Crime' },
-  { name: 'The Ben Shapiro Show',       category: 'Politics & Current Affairs' },
-  { name: 'Planet Money',               category: 'Finance & Investing' },
-  { name: 'Radiolab',                   category: 'Science & Technology' },
-  { name: 'The Joe Rogan Experience',   category: 'Comedy' },
-  { name: 'Stuff You Missed in History Class', category: 'History' },
-  { name: 'The Bible in a Year',        category: 'Religion & Spirituality' },
-  { name: 'Good Inside with Dr. Becky', category: 'Parenting & Family' }
-];
-
-// 15 audiobook genre queries for the LibriVox API
 const SEED_BOOK_GENRES = [
   { genre: 'mystery',          category: 'Mystery & Thriller' },
   { genre: 'adventure',        category: 'Adventure & Action' },
@@ -469,15 +469,10 @@ const BOOK_CATEGORIES = ['All', 'Classic Literature', 'Mystery & Thriller',
   'Science & Nature', 'History', 'Short Stories & Collections',
   'Poetry & Drama']; 
 
- 
 const audio = document.getElementById('audio-el');
 
-// ── LibriVox / Podcast data ───────────────────────────────────────────────────
-// LibriVox has a public API — no key needed
 const LIBRIVOX_BOOKS = [
   { id: 'lb1', title: 'The Hound of the Baskervilles', author: 'Arthur Conan Doyle', episode: 'Chapter 1', icon: '🐕', type: 'book',
-    url: 'https://www.librivox.org/the-hound-of-the-baskervilles-by-arthur-conan-doyle/', // landing page
-    // Direct mp3 stream from LibriVox (public domain)
     stream: 'https://ia800201.us.archive.org/23/items/hound_baskervilles_0809_librivox/hound_of_baskervilles_01_doyle.mp3' },
   { id: 'lb2', title: 'The Metamorphosis', author: 'Franz Kafka', episode: 'Chapter 1', icon: '🪲', type: 'book',
     stream: 'https://ia800502.us.archive.org/27/items/metamorphosis_0711_librivox/metamorphosis_01_kafka.mp3' },
@@ -485,105 +480,87 @@ const LIBRIVOX_BOOKS = [
     stream: 'https://ia800204.us.archive.org/11/items/pride_and_prejudice_librivox/prideandprejudice_01_austen.mp3' }
 ];
 
-// NOTE: previously this held two hardcoded "placeholder" podcast entries
-// with podtrac.com redirect URLs baked in as the stream. Those were never
-// verified against the shows' actual current feeds, they duplicated the
-// real Huberman Lab entry once the live Worker fetch succeeded (same
-// title, different id), and they're the "two placeholder podcasts with no
-// content" you were seeing. Removed in favor of the loading state below
-// plus the real Worker-driven fetch, which is the only source of truth now.
-const PODCAST_FEEDS = [];
+let ALL_TRACKS = [...LIBRIVOX_BOOKS];
 
-// ALL_TRACKS is mutable — rebuilt after live fetch completes
-let ALL_TRACKS = [...LIBRIVOX_BOOKS, ...PODCAST_FEEDS];
-
-// ── Build lists — fetches live data then renders ───────────────────────────────
+// ── Build lists ───────────────────────────────────────────────────────────────
 async function buildLists() {
-  // Show loading states immediately while fetching
   showListLoading('podcast-list', 'Loading podcasts...');
   showListLoading('books-list', 'Loading audiobooks...');
 
-  // Build category chip rows
   buildCategoryChips('podcast-cats', PODCAST_CATEGORIES, 'podcast');
   buildCategoryChips('book-cats',    BOOK_CATEGORIES,    'book');
 
-  // Seed with hardcoded fallback items immediately so list is never blank
-  podcastData = [...PODCAST_FEEDS];
-  bookData    = [...LIBRIVOX_BOOKS];
-  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
-  renderFilteredList('books-list',   bookData,    activeBookCategory,    bookSearchQuery);
+  bookData = [...LIBRIVOX_BOOKS];
+  renderBookList('books-list', bookData, activeBookCategory, bookSearchQuery);
 
-  // Fetch podcasts via Cloudflare Worker in parallel
-  // Fetch podcasts via Cloudflare Worker — staggered to stay under
-// iTunes Search API's burst rate limit (firing all 15 at once gets most of
-// them rejected with a non-200, which the Worker correctly reports as a
-// "502 iTunes lookup failed").
-// NOTE: podcasts are no longer fetched one-by-one from this client. A
-// separate Cron-triggered Worker preloads all 15 seed podcasts into
-// Cloudflare KV on a rolling schedule (one every 30 min), and this single
-// call just reads whatever's already been resolved. No iTunes call ever
-// happens on this request path, so there's nothing here to rate-limit.
-async function fetchPreloadedPodcasts() {
-  try {
-    const res = await fetch(`${CF_WORKER_URL}podcasts`);
-    if (!res.ok) {
-      console.warn('Preloaded podcasts fetch failed:', res.status);
-      return [];
-    }
-    const docs = await res.json();
-    const items = [];
-    docs.forEach(doc => {
-      if (!doc.episodes || doc.episodes.length === 0) return;
-      doc.episodes.slice(0, 3).forEach((ep, i) => {
-        items.push({
-          id: 'pod_' + (doc.name || 'podcast').replace(/\s+/g, '_').toLowerCase() + '_' + i,
-          type: 'podcast',
-          title: doc.title || doc.name,
-          author: doc.author || '',
-          episode: ep.title,
-          stream: ep.stream,
-          coverUrl: doc.coverUrl || null,
-          icon: '🎙️',
-          category: doc.category,
-          duration: ep.duration || null
-        });
-      });
-    });
-    return items;
-  } catch (e) {
-    console.warn('Preloaded podcasts fetch failed:', e);
-    return [];
-  }
-}
   const bookPromises = SEED_BOOK_GENRES.map(g => fetchLibriVoxGenre(g.genre, g.category));
   const [newPodcasts, bookResults] = await Promise.all([
-    fetchPreloadedPodcasts(),   // single call — all 15 already resolved in KV
+    fetchPreloadedPodcasts(),
     Promise.allSettled(bookPromises)
   ]);
 
-  // Merge successful results, deduplicate by id
   const newBooks = bookResults
     .filter(r => r.status === 'fulfilled' && r.value)
     .map(r => r.value)
     .flat();
 
   if (newPodcasts.length > 0) {
-    // Merge with seeds, dedup by id
-    const existingIds = new Set(podcastData.map(p => p.id));
-    newPodcasts.forEach(p => { if (!existingIds.has(p.id)) { podcastData.push(p); existingIds.add(p.id); } });
+    podcastData = newPodcasts;
   }
   if (newBooks.length > 0) {
     const existingIds = new Set(bookData.map(b => b.id));
     newBooks.forEach(b => { if (!existingIds.has(b.id)) { bookData.push(b); existingIds.add(b.id); } });
   }
 
-  // Update ALL_TRACKS for daily pick
-  ALL_TRACKS.length = 0;
-  ALL_TRACKS.push(...podcastData, ...bookData);
+  // Flatten podcast tracks for daily pick pool
+  const flatPodcasts = [];
+  podcastData.forEach(p => {
+    p.episodes.forEach(ep => flatPodcasts.push(ep));
+  });
 
-  // Re-render with full data
-  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
-  renderFilteredList('books-list',   bookData,    activeBookCategory,    bookSearchQuery);
+  ALL_TRACKS.length = 0;
+  ALL_TRACKS.push(...flatPodcasts, ...bookData);
+
+  renderPodcastAccordion('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+  renderBookList('books-list', bookData, activeBookCategory, bookSearchQuery);
+}
+
+// ── Fetch grouped podcast structure ──
+async function fetchPreloadedPodcasts() {
+  try {
+    const res = await fetch(`${CF_WORKER_URL}podcasts`);
+    if (!res.ok) return [];
+    const docs = await res.json();
+    
+    return docs.map((doc, idx) => {
+      const showId = 'pod_show_' + (doc.name || 'show').replace(/\s+/g, '_').toLowerCase();
+      const episodes = (doc.episodes || []).slice(0, 3).map((ep, i) => ({
+        id: showId + '_ep_' + i,
+        type: 'podcast',
+        title: ep.title,
+        showTitle: doc.title || doc.name,
+        author: doc.author || doc.name,
+        episode: ep.title,
+        stream: ep.stream,
+        coverUrl: doc.coverUrl || null,
+        icon: '🎙️',
+        category: doc.category,
+        duration: ep.duration || null
+      }));
+
+      return {
+        id: showId,
+        title: doc.title || doc.name,
+        author: doc.author || doc.name,
+        coverUrl: doc.coverUrl || null,
+        category: doc.category,
+        episodes: episodes
+      };
+    }).filter(show => show.episodes.length > 0);
+  } catch (e) {
+    console.warn('Preloaded podcasts fetch failed:', e);
+    return [];
+  }
 }
 
 function showListLoading(containerId, msg) {
@@ -607,18 +584,96 @@ function buildCategoryChips(containerId, categories, type) {
   });
 }
 
-function renderFilteredList(containerId, items, category, query) {
+// ── Render Grouped Podcast Accordion View ──────────────────────────────────
+function renderPodcastAccordion(containerId, shows, category, query) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  let filtered = shows;
+
+  if (category && category !== 'All') {
+    filtered = filtered.filter(show => show.category === category);
+  }
+
+  if (query && query.trim().length > 0) {
+    const q = query.toLowerCase().trim();
+    filtered = filtered.filter(show =>
+      show.title.toLowerCase().includes(q) ||
+      show.author.toLowerCase().includes(q) ||
+      show.episodes.some(e => e.title.toLowerCase().includes(q))
+    );
+  }
+
+  if (filtered.length === 0) {
+    el.innerHTML = `<div class="loading-msg">No podcasts found.</div>`;
+    return;
+  }
+
+  el.innerHTML = '';
+  filtered.forEach(show => {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'podcast-group';
+
+    const thumbHtml = show.coverUrl
+      ? `<div class="feed-thumb" style="background:none;padding:0;overflow:hidden;">
+           <img src="${show.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='🎙️'">
+         </div>`
+      : `<div class="feed-thumb">🎙️</div>`;
+
+    const header = document.createElement('div');
+    header.className = 'podcast-header';
+    header.innerHTML = `
+      <span class="podcast-arrow">&#9654;</span>
+      ${thumbHtml}
+      <div class="feed-meta">
+        <div class="feed-title" style="font-size:15px;font-weight:600;">${show.title}</div>
+        <div class="feed-sub">${show.author}${show.category ? ' · ' + show.category : ''}</div>
+      </div>
+      <span class="feed-dur" style="color:rgba(255,255,255,0.5)">${show.episodes.length} eps</span>
+    `;
+
+    const epContainer = document.createElement('div');
+    epContainer.className = 'episodes-container';
+
+    show.episodes.forEach(ep => {
+      const epDiv = document.createElement('div');
+      epDiv.className = 'feed-item';
+      epDiv.id = 'item-' + ep.id;
+      epDiv.innerHTML = `
+        <div class="feed-meta">
+          <div class="feed-title">${ep.title}</div>
+          <div class="feed-sub">Tap to play</div>
+        </div>
+        <span class="feed-dur">🎙️</span>
+      `;
+      epDiv.onclick = (e) => {
+        e.stopPropagation();
+        playTrack(ep);
+      };
+      epContainer.appendChild(epDiv);
+    });
+
+    header.onclick = () => {
+      groupDiv.classList.toggle('open');
+    };
+
+    groupDiv.appendChild(header);
+    groupDiv.appendChild(epContainer);
+    el.appendChild(groupDiv);
+  });
+}
+
+// ── Render Flat Audiobook List View ──────────────────────────────────────────
+function renderBookList(containerId, items, category, query) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
   let filtered = items;
 
-  // Apply category filter
   if (category && category !== 'All') {
     filtered = filtered.filter(item => item.category === category);
   }
 
-  // Apply search query
   if (query && query.trim().length > 0) {
     const q = query.toLowerCase().trim();
     filtered = filtered.filter(item =>
@@ -638,12 +693,11 @@ function renderFilteredList(containerId, items, category, query) {
     div.className = 'feed-item';
     div.id = 'item-' + item.id;
 
-    // Artwork: show real image if available, otherwise emoji
     const thumbHtml = item.coverUrl
       ? `<div class="feed-thumb" style="background:none;padding:0;overflow:hidden;">
-           <img src="${item.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='${item.icon || (item.type==='book'?'📚':'🎙️')}'">
+           <img src="${item.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='📚'">
          </div>`
-      : `<div class="feed-thumb">${item.icon || (item.type === 'book' ? '📚' : '🎙️')}</div>`;
+      : `<div class="feed-thumb">${item.icon || '📚'}</div>`;
 
     div.innerHTML = `
       ${thumbHtml}
@@ -651,24 +705,16 @@ function renderFilteredList(containerId, items, category, query) {
         <div class="feed-title">${item.title}</div>
         <div class="feed-sub">${item.author}${item.category ? ' · ' + item.category : ''}</div>
       </div>
-      <span class="feed-dur">${item.type === 'book' ? '📚' : '🎙️'}</span>
+      <span class="feed-dur">📚</span>
     `;
     div.onclick = () => playTrack(item);
     el.appendChild(div);
   });
 }
 
-// NOTE: the old per-podcast fetchPodcastViaWorker(name) function that lived
-// here has been removed. It's no longer called anywhere — podcasts now come
-// from the single fetchPreloadedPodcasts() call above, which reads results
-// a separate Cron Worker already preloaded into KV. See SETUP.md.
-
-// ── Audiobook fetch (Internet Archive mirror of the LibriVox collection) ──
-// Internet Archive hosts the same LibriVox recordings, is far more reliable
-// than librivox.org's own API, and sends proper CORS headers.
+// ── LibriVox Audiobooks via Internet Archive ──
 async function fetchLibriVoxGenre(genre, category) {
   try {
-    // 1) Search IA for up to 3 LibriVox recordings tagged with this subject/genre
     const searchUrl =
       'https://archive.org/advancedsearch.php?q=' +
       encodeURIComponent(`collection:(librivoxaudio) AND subject:("${genre}")`) +
@@ -680,7 +726,6 @@ async function fetchLibriVoxGenre(genre, category) {
     const docs = (searchData && searchData.response && searchData.response.docs) || [];
     if (docs.length === 0) return null;
 
-    // 2) For each result, read its file list to get a real playable mp3 URL
     const bookPromises = docs.map(async (doc) => {
       try {
         const metaRes = await fetch(`https://archive.org/metadata/${doc.identifier}`);
@@ -688,7 +733,6 @@ async function fetchLibriVoxGenre(genre, category) {
         const meta = await metaRes.json();
         const files = meta.files || [];
 
-        // Keep only actual mp3 chapter files, sorted so chapter 1 comes first
         const mp3Files = files
           .filter(f => f.name && /\.mp3$/i.test(f.name) && f.format && /mp3/i.test(f.format))
           .sort((a, b) => a.name.localeCompare(b.name));
@@ -708,35 +752,26 @@ async function fetchLibriVoxGenre(genre, category) {
           stream: baseUrl + encodeURIComponent(firstFile.name),
           coverUrl: `https://archive.org/services/img/${doc.identifier}`,
           icon: '📚',
-          category: category,
-          sections: mp3Files.map(f => ({
-            title: f.title || f.name,
-            listen_url: baseUrl + encodeURIComponent(f.name)
-          })),
-          totaltime: null
+          category: category
         };
       } catch (e) {
-        console.warn('IA metadata fetch failed for', doc.identifier, e);
         return null;
       }
     });
 
     const books = (await Promise.all(bookPromises)).filter(Boolean);
     return books.length > 0 ? books : null;
-
   } catch (e) {
-    console.warn('Internet Archive fetch failed for genre', genre, e);
     return null;
   }
 }
-
 
 // ── Search handlers ───────────────────────────────────────────────────────────
 function onPodcastSearch(value) {
   podcastSearchQuery = value;
   const clearBtn = document.getElementById('podcast-clear');
   if (clearBtn) clearBtn.classList.toggle('visible', value.length > 0);
-  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+  renderPodcastAccordion('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
 }
 
 function clearPodcastSearch() {
@@ -745,14 +780,14 @@ function clearPodcastSearch() {
   if (input) input.value = '';
   const clearBtn = document.getElementById('podcast-clear');
   if (clearBtn) clearBtn.classList.remove('visible');
-  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+  renderPodcastAccordion('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
 }
 
 function onBookSearch(value) {
   bookSearchQuery = value;
   const clearBtn = document.getElementById('book-clear');
   if (clearBtn) clearBtn.classList.toggle('visible', value.length > 0);
-  renderFilteredList('books-list', bookData, activeBookCategory, bookSearchQuery);
+  renderBookList('books-list', bookData, activeBookCategory, bookSearchQuery);
 }
 
 function clearBookSearch() {
@@ -761,17 +796,16 @@ function clearBookSearch() {
   if (input) input.value = '';
   const clearBtn = document.getElementById('book-clear');
   if (clearBtn) clearBtn.classList.remove('visible');
-  renderFilteredList('books-list', bookData, activeBookCategory, bookSearchQuery);
+  renderBookList('books-list', bookData, activeBookCategory, bookSearchQuery);
 }
 
 // ── Category filter handlers ───────────────────────────────────────────────────
 function setPodcastCategory(cat) {
   activePodcastCategory = cat;
-  // Update chip active state
   document.querySelectorAll('#podcast-cats .cat-chip').forEach(chip => {
     chip.classList.toggle('active', chip.textContent === cat);
   });
-  renderFilteredList('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
+  renderPodcastAccordion('podcast-list', podcastData, activePodcastCategory, podcastSearchQuery);
 }
 
 function setBookCategory(cat) {
@@ -779,15 +813,13 @@ function setBookCategory(cat) {
   document.querySelectorAll('#book-cats .cat-chip').forEach(chip => {
     chip.classList.toggle('active', chip.textContent === cat);
   });
-  renderFilteredList('books-list', bookData, activeBookCategory, bookSearchQuery);
+  renderBookList('books-list', bookData, activeBookCategory, bookSearchQuery);
 }
  
 // ── Playback ──────────────────────────────────────────────────────────────────
 function playTrack(track) {
   currentTrack = track;
 
-  // Update artwork & info
- // Show real cover art if available, otherwise fall back to emoji
   const artworkEl    = document.getElementById('artwork');
   const artworkImg   = document.getElementById('artwork-img');
   const artworkIcon  = document.getElementById('artwork-icon');
@@ -806,22 +838,16 @@ function playTrack(track) {
   document.getElementById('track-title').textContent = track.title;
   document.getElementById('track-sub').textContent = track.author + (track.episode ? ' · ' + track.episode : '');
 
-  // Load audio
   audio.src = track.stream;
   audio.play().catch(e => console.warn('Autoplay blocked:', e));
 
-  // Update playing highlight in list
   document.querySelectorAll('.feed-item').forEach(d => d.classList.remove('playing'));
   const itemEl = document.getElementById('item-' + track.id);
   if (itemEl) itemEl.classList.add('playing');
 
-  // Switch to player view
   switchTab('player');
-
-  // Start watch timer
   startWatchTimer();
 
-  // Schedule daily pick
   if (!dailyPickDone) setTimeout(triggerDailyPick, 10000);
 
   updatePlayPauseUI();
@@ -859,15 +885,10 @@ function skip(seconds) {
   audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, audio.duration || 0));
 }
 
- audio.addEventListener('play', () => {
+audio.addEventListener('play', () => {
   startAdBreakTimer();
 });
 
-audio.addEventListener('pause', () => {
-  // Don't stop the interval here — the interval already checks audio.paused
-  // internally, so it costs nothing while paused. Stopping and restarting it
-  // on every tap-pause would risk double-counting. Let it tick and check.
-});
 // ── Seek bar ──────────────────────────────────────────────────────────────────
 let seeking = false;
 
@@ -941,21 +962,18 @@ function stampMoment() {
   showToast('⭐ Stamped at ' + fmtTime(ts));
   postToGodot({ type: 'stamp', trackId: currentTrack.id, title: currentTrack.title, streamUrl: currentTrack.stream, timestamp: ts, stamps: sessionStamps });
 
-  // visual pulse on stamp button
   const btn = document.getElementById('stamp-btn');
   btn.style.background = 'rgba(255,215,0,0.3)';
   setTimeout(() => btn.style.background = '', 400);
 }
 
 // ── Ad-break overlay state ────────────────────────────────────────────────────
-// Counts only active playback seconds. At 180s the flag is set; the break fires
-// immediately since audio has no natural "next slide" transition to wait for.
 let adPlaySeconds   = 0;
 let adBreakActive   = false;
 let adTimerInterval = null;
 
 function startAdBreakTimer() {
-  if (adTimerInterval) return; // already running
+  if (adTimerInterval) return;
   adTimerInterval = setInterval(() => {
     if (!audio.paused && !adBreakActive) {
       adPlaySeconds++;
@@ -966,46 +984,36 @@ function startAdBreakTimer() {
   }, 1000);
 }
 
-function stopAdBreakTimer() {
-  clearInterval(adTimerInterval);
-  adTimerInterval = null;
-}
-
-// Called by this page itself when 3 min is reached.
-// Also exposed globally so Godot can call it if needed (unlikely but safe).
 function pauseForInterstitial() {
   adBreakActive = true;
-  adPlaySeconds = 0; // reset so the next interval starts fresh after the ad
+  adPlaySeconds = 0;
   audio.pause();
   updatePlayPauseUI();
-  clearInterval(watchTimer); // stop the per-minute token timer too
+  clearInterval(watchTimer);
   postToGodot({ type: 'show_interstitial' });
 }
 
-// Called by Godot via executeJavaScript("resumePlayback();") after the ad closes.
 function resumePlayback() {
   adBreakActive = false;
   if (currentTrack) {
     audio.play().catch(() => {});
     updatePlayPauseUI();
-    startWatchTimer();     // restart the per-minute token timer
-    startAdBreakTimer();   // restart the 3-minute ad clock
+    startWatchTimer();
+    startAdBreakTimer();
   }
 }
  
-// ── Watch timer (earn tokens per minute listened) ─────────────────────────────
-// ── Modified Audio Tracking Segment ──
+// ── Watch timer ───────────────────────────────────────────────────────────────
 function startWatchTimer() {
   clearInterval(watchTimer);
   let activeSeconds = 0;
   
   watchTimer = setInterval(() => {
-    // Only increment and award points if the track is actually actively playing
     if (audio && !audio.paused && currentTrack) {
       activeSeconds += 5;
       if (activeSeconds >= 60) {
         addTokens(1, 'listening for a minute');
-        activeSeconds = 0; // Clear incremental tracking balance
+        activeSeconds = 0;
       }
     }
   }, 5000);
@@ -1021,7 +1029,7 @@ function triggerDailyPick() {
   pool.forEach(t => {
     const div = document.createElement('div');
     div.className = 'pick-option';
-    div.innerHTML = `<span class="pick-icon">${t.icon}</span><span class="pick-label">${t.title.slice(0,20)}</span>`;
+    div.innerHTML = `<span class="pick-icon">${t.icon || '🎙️'}</span><span class="pick-label">${t.title.slice(0,20)}</span>`;
     div.onclick = () => choosePick(div, t, pool);
     container.appendChild(div);
   });
