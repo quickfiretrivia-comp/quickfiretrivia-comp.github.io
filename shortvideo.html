@@ -419,17 +419,6 @@ function loadYTPlayer(idx) {
   });
 }
 
-function setupDMMessaging(idx) {
-  window.addEventListener('message', (e) => {
-    if (!e.origin.includes('dailymotion.com')) return;
-    try {
-      const data = JSON.parse(e.data);
-      if (data.event === 'videoend' && idx === currentIdx) {
-        simulateSwipeNext();
-      }
-    } catch(err){}
-  });
-}
 
 function toggleMuteState() {
   isMuted = !isMuted;
@@ -495,7 +484,6 @@ function playActiveVideo() {
       startVideoTokenTimer();
     }
   } else {
-    setupDMMessaging(currentIdx);
     const iframe = document.getElementById(`dm-player-${currentIdx}`);
     if (iframe && iframe.contentWindow) {
       iframe.contentWindow.postMessage(JSON.stringify({ command: isMuted ? 'mute' : 'unmute' }), '*');
