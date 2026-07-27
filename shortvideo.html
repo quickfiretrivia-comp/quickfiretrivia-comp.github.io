@@ -245,13 +245,50 @@ const AD_INTERVAL_SECONDS = 180;
 let videoReactions = {}; 
 let isFetching = false;
 let servedVideoIds = [];
- 
-function postToGodot(data) {
-  console.log("postToGodot:", data);
+
+// ── JS → Godot bridge transport ──────────────────────────────────────────
+// The bridge object (window.JavaScriptBridge / window.Godot) is injected by
+// native Android code. If postToGodot() is called before that injection has
+// landed (or right after an orientation change tears the WebView's JS
+// context around), the message would previously be silently dropped with
+// no error. We now queue it and retry until the bridge shows up.
+let _bridgeQueue = [];
+let _bridgeRetryTimer = null;
+
+function _getBridge() {
   if (typeof window.JavaScriptBridge !== 'undefined' && window.JavaScriptBridge.postToGodot) {
-    window.JavaScriptBridge.postToGodot(JSON.stringify(data));
-  } else if (typeof window.Godot !== 'undefined' && window.Godot.postToGodot) {
-    window.Godot.postToGodot(JSON.stringify(data));
+    return window.JavaScriptBridge;
+  }
+  if (typeof window.Godot !== 'undefined' && window.Godot.postToGodot) {
+    return window.Godot;
+  }
+  return null;
+}
+
+function _startBridgeRetry() {
+  if (_bridgeRetryTimer) return;
+  _bridgeRetryTimer = setInterval(() => {
+    const bridge = _getBridge();
+    if (bridge) {
+      console.log("postToGodot: bridge became available, flushing " + _bridgeQueue.length + " queued message(s)");
+      while (_bridgeQueue.length) {
+        bridge.postToGodot(JSON.stringify(_bridgeQueue.shift()));
+      }
+      clearInterval(_bridgeRetryTimer);
+      _bridgeRetryTimer = null;
+    }
+  }, 250);
+}
+
+function postToGodot(data) {
+  const bridge = _getBridge();
+  if (bridge) {
+    console.log("postToGodot:", data);
+    bridge.postToGodot(JSON.stringify(data));
+  } else {
+    console.warn("postToGodot: bridge NOT READY, queuing:", data);
+    _bridgeQueue.push(data);
+    _startBridgeRetry();
   }
 }
 
