@@ -670,7 +670,7 @@ function triggerAdBreak() {
   stopVideoTokenTimer();
   pauseActiveVideo();
   document.getElementById('ad-overlay').classList.add('open');
-  postToGodot({ type: 'trigger_ad' });
+  postToGodot({ type: 'show_interstitial' });
 }
 
 function resumePlayback() {
