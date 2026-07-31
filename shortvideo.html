@@ -503,6 +503,8 @@ function pauseActiveVideo() {
 
 function playActiveVideo() {
   if (isDailyPickOpen) return; // Block background playback
+  stopVideoTokenTimer();
+  startVideoTokenTimer();
   const nextVideo = slides[currentIdx];
   if (nextVideo.type === 'youtube') {
     if (!players[currentIdx]) {
@@ -613,6 +615,9 @@ function startVideoTokenTimer() {
   if (videoTokenTimer) clearInterval(videoTokenTimer);
   videoWatchedTime = 0; // Fixed: Always clear past view parameters completely on init loops
   
+  const reactPanel = document.getElementById(`reacts-${currentIdx}`);
+  if (reactPanel) reactPanel.classList.remove('visible');
+ 
   videoTokenTimer = setInterval(() => {
     videoWatchedTime++;
     
