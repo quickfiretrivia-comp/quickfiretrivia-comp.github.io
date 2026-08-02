@@ -1053,8 +1053,10 @@ function addTokens(n, reason) {
 
 function postToGodot(data) {
   try {
-    if (window.JavaScriptBridge) {
-      window.JavaScriptBridge.call('receive_audio_data', JSON.stringify(data));
+    if (window.GodotChrome) {
+      window.GodotChrome.postMessage(JSON.stringify(data));
+    } else if (window.JavaScriptBridge) {
+      window.JavaScriptBridge.call('from_js', JSON.stringify(data));
     }
   } catch(e) {}
   console.log('[Godot bridge]', JSON.stringify(data));
