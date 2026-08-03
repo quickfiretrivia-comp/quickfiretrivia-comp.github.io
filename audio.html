@@ -1063,10 +1063,10 @@ function addTokens(n, reason) {
 
 function postToGodot(data) {
   try {
-    if (window.GodotChrome) {
-      window.GodotChrome.postMessage(JSON.stringify(data));
-    } else if (window.JavaScriptBridge) {
-      window.JavaScriptBridge.call('from_js', JSON.stringify(data));
+    if (window.JavaScriptBridge && window.JavaScriptBridge.postToGodot) {
+      window.JavaScriptBridge.postToGodot(JSON.stringify(data));
+    } else if (window.Godot && window.Godot.postToGodot) {
+      window.Godot.postToGodot(JSON.stringify(data));
     }
   } catch(e) {}
   console.log('[Godot bridge]', JSON.stringify(data));
