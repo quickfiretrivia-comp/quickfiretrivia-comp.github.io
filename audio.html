@@ -1039,7 +1039,18 @@ function switchTab(name) {
 function fmtTime(s) {
   if (!s || isNaN(s)) return '0:00';
   s = Math.floor(s);
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2,'0');
+  
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+
+  if (hours > 0) {
+    // Standard H:MM:SS format (e.g. 1:10:08)
+    return hours + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+  }
+
+  // Standard M:SS format for under 1 hour (e.g. 5:42)
+  return minutes + ':' + String(seconds).padStart(2, '0');
 }
 
 let toastTimer = null;
