@@ -804,6 +804,8 @@ function playTrack(track) {
   audio.src = track.stream;
   audio.play().catch(e => console.warn('Autoplay blocked:', e));
 
+  sessionStamps = [];
+ 
   document.querySelectorAll('.feed-item').forEach(d => d.classList.remove('playing'));
   const itemEl = document.getElementById('item-' + track.id);
   if (itemEl) itemEl.classList.add('playing');
@@ -919,6 +921,13 @@ function finishAndPickNext() {
 // ── Stamp ─────────────────────────────────────────────────────────────────────
 function stampMoment() {
   if (!currentTrack) { showToast('Nothing playing yet'); return; }
+  
+  // Check if the user has already stamped 3 times
+  if (sessionStamps.length >= 3) {
+    showToast('Maximum 3 stamps reached!');
+    return;
+  }
+
   const ts = Math.round(audio.currentTime || 0);
   sessionStamps.push({ trackId: currentTrack.id, streamUrl: currentTrack.stream, timestamp: ts });
   addTokens(2, 'stamping a best moment');
@@ -974,8 +983,9 @@ function startWatchTimer() {
   watchTimer = setInterval(() => {
     if (audio && !audio.paused && currentTrack) {
       activeSeconds += 5;
-      if (activeSeconds >= 60) {
-        addTokens(1, 'listening for a minute');
+      // 10 minutes = 600 seconds
+      if (activeSeconds >= 600) { 
+        addTokens(2, 'listening for 10 minutes');
         activeSeconds = 0;
       }
     }
