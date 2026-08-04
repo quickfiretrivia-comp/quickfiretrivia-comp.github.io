@@ -69,16 +69,6 @@
     pointer-events: none;
   }
 
-  .token-pill {
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid var(--gold-border);
-    padding: 6px 14px;
-    border-radius: 20px;
-    display: flex; align-items: center; gap: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  }
-  .token-icon { color: var(--gold); font-size: 16px; font-weight: bold; }
-  .token-label { color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; }
 
   .right-actions {
     position: absolute; right: 14px; bottom: 220px;
@@ -231,7 +221,7 @@ let isVideoPaused = false;
 let isDailyPickOpen = false; // Guard to stop playback in background
 
 let dailyPickShown = false;
-let totalTokens = 0;
+
 let sessionPicks = [];
 
 let videoWatchedTime = 0; // Tracks duration for the active video
@@ -292,13 +282,6 @@ function postToGodot(data) {
   }
 }
 
-function addTokens(amt, reason) {
-  totalTokens += amt;
-  document.querySelectorAll('.token-label').forEach(el => {
-    el.innerText = totalTokens + ' TOKENS';
-  });
-  postToGodot({ type: 'token_earned', amount: amt, total: totalTokens, reason: reason });
-}
 
 window.onload = function() {
   const tag = document.createElement('script');
@@ -345,12 +328,6 @@ function createSlideHTML(vid, idx) {
     `<iframe id="dm-player-${idx}" src="https://www.dailymotion.com/embed/video/${vid.id}?api=1&autoplay=1&mute=1&controls=0&sharing-enable=0&ui-start-screen-owner=0" allow="autoplay" crossorigin></iframe>`;
 
   return `
-    <div class="overlay-top">
-      <div class="token-pill">
-        <span class="token-icon">⚡</span>
-        <span class="token-label">${totalTokens} TOKENS</span>
-      </div>
-    </div>
     ${playerHtml}
     <div class="overlay-bottom"></div>
     <div class="reactions-panel" id="reacts-${idx}">
@@ -485,7 +462,7 @@ function handleReaction(videoId, emoji, element) {
     if (item === element) item.classList.add('selected'); else item.classList.add('disabled');
   });
 
-  addTokens(2, 'video reaction');
+  
   postToGodot({ type: 'reaction', video_id: videoId, emoji: emoji });
 }
 
@@ -647,9 +624,6 @@ function startVideoTokenTimer() {
       }
     }
 
-    if (videoWatchedTime % 120 === 0) {
-      addTokens(1, 'continuous watch milestone');
-    }
   }, 1000);
 }
 
@@ -711,7 +685,7 @@ function choosePick(el, chosen, all) {
   document.querySelectorAll('.pick-option').forEach(d => d.classList.remove('chosen'));
   el.classList.add('chosen');
   sessionPicks.push({ chosen: chosen.id, options: all.map(o => o.id) });
-  addTokens(1, 'daily pick vote');
+  
   postToGodot({ type: 'daily_pick', chosen: chosen.id, options: all.map(o => o.id) });
 
   setTimeout(() => {
