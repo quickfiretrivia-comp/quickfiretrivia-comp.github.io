@@ -42,7 +42,7 @@
 
   /* ── Token badge (Fixed Top Right) ── */
   #token-badge {
-    position: fixed; top: 14px; right: 14px; z-index: 40;
+    position: fixed; top: 14px; right: 14px; z-index: 100;
     background: var(--gold-dim);
     border: 1px solid var(--gold-border);
     border-radius: 20px; padding: 5px 12px;
@@ -51,8 +51,8 @@
   }
   #token-badge.bump { transform: scale(1.2); }
 
- #exit-btn {
-    position: fixed; top: 14px; left: 14px; z-index: 1000;
+  #exit-btn {
+    position: fixed; top: 14px; left: 14px; z-index: 100;
     width: 34px; height: 34px;
     display: flex; align-items: center; justify-content: center;
     background: var(--accent-dim);
@@ -277,8 +277,8 @@
 </style>
 </head>
 <body>
-<button id="exit-btn" onclick="exitWebview()">&#10005;</button>
 <div id="token-badge">0 tokens</div>
+<button id="exit-btn" onclick="exitWebview()">&#10005;</button>
 <div id="toast"></div>
 
 <!-- Tab bar -->
