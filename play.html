@@ -114,7 +114,7 @@
         scrolling="no"
         frameborder="0">
     </iframe>
-    <button id="menu-btn" onclick="exitWebview()">BACK TO OTHER GAMES MENU</button>
+    <button id="menu-btn" onclick="exitWebview()">EXIT TO MAIN GAMES MENU</button>
     <script>
         var params = new URLSearchParams(window.location.search);
         var gameId = params.get('id');
@@ -124,15 +124,12 @@
 
         // ── Godot Bridge Exit Function ──
         function exitWebview() {
-            try {
-                if (window.JavaScriptBridge && window.JavaScriptBridge.postToGodot) {
-                    window.JavaScriptBridge.postToGodot(JSON.stringify({ type: 'exit_webview' }));
-                } else if (window.Godot && window.Godot.postToGodot) {
-                    window.Godot.postToGodot(JSON.stringify({ type: 'exit_webview' }));
-                }
-            } catch(e) {}
-            console.log('[Godot bridge] exit_webview');
+          if (window.GodotChrome && window.GodotChrome.postMessage) {
+            window.GodotChrome.postMessage(JSON.stringify({ type: "exit_webview" }));
+          }
         }
+        
+        
         
         // ── Timed Visibility Logic ──
         function startMenuButtonTimer() {
