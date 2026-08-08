@@ -68,6 +68,38 @@
             50%  { opacity: 0.3; }
             100% { opacity: 1; }
         }
+
+        /* ── Back to Games Pill Button ── */
+        #menu-btn {
+            position: fixed;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            
+            background-color: #000000;
+            border: 2px solid #ffd700; /* Gold frame */
+            border-radius: 25px;       /* Pill shape */
+            
+            color: #ffd700;
+            font-family: sans-serif;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            
+            padding: 8px 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            
+            /* Hidden by default until the timer triggers it */
+            display: none;
+        }
+        
+        #menu-btn:active {
+            transform: translateX(-50%) scale(0.95);
+            background-color: #1a1a1a;
+        }
     </style>
 </head>
 <body>
@@ -82,6 +114,7 @@
         scrolling="no"
         frameborder="0">
     </iframe>
+    <button id="menu-btn" onclick="exitWebview()">BACK TO OTHER GAMES MENU</button>
     <script>
         var params = new URLSearchParams(window.location.search);
         var gameId = params.get('id');
@@ -89,6 +122,46 @@
         var loadingScreen = document.getElementById('loading-screen');
         var gameUrl       = gameId ? 'https://html5.gamemonetize.com/' + gameId + '/' : null;
 
+        // ── Godot Bridge Exit Function ──
+        function exitWebview() {
+            try {
+                if (window.JavaScriptBridge && window.JavaScriptBridge.postToGodot) {
+                    window.JavaScriptBridge.postToGodot(JSON.stringify({ type: 'exit_webview' }));
+                } else if (window.Godot && window.Godot.postToGodot) {
+                    window.Godot.postToGodot(JSON.stringify({ type: 'exit_webview' }));
+                }
+            } catch(e) {}
+            console.log('[Godot bridge] exit_webview');
+        }
+        
+        // ── Timed Visibility Logic ──
+        function startMenuButtonTimer() {
+            var btn = document.getElementById('menu-btn');
+            if (!btn) return;
+        
+            function showButton() {
+                btn.style.display = 'block';
+        
+                // Hide after 30 seconds
+                setTimeout(function() {
+                    btn.style.display = 'none';
+                }, 30000); // 30 seconds = 30,000 ms
+            }
+        
+            // 1. Initial trigger: Show after 2 minutes (120,000 ms)
+            setTimeout(function() {
+                showButton();
+        
+                // 2. Repeating trigger: Show every 10 minutes (600,000 ms)
+                setInterval(function() {
+                    showButton();
+                }, 600000);
+        
+            }, 120000);
+        }
+
+        // Start the timer cycle when page loads
+        startMenuButtonTimer();
         if (!gameId) {
             loadingScreen.style.display = 'none';
             document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:40%;font-family:sans-serif'>Invalid Game Link</h2>";
