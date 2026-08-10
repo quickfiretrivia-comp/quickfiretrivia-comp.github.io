@@ -122,12 +122,23 @@
         var loadingScreen = document.getElementById('loading-screen');
         var gameUrl       = gameId ? 'https://html5.gamemonetize.com/' + gameId + '/' : null;
 
-        // ── Godot Bridge Exit Function ──
-        function exitWebview() {
-          if (window.GodotChrome && window.GodotChrome.postMessage) {
-            window.GodotChrome.postMessage(JSON.stringify({ type: "exit_webview" }));
+        function postToGodot(data) {
+            try {
+              if (window.JavaScriptBridge && window.JavaScriptBridge.postToGodot) {
+                window.JavaScriptBridge.postToGodot(JSON.stringify(data));
+              } else if (window.Godot && window.Godot.postToGodot) {
+                window.Godot.postToGodot(JSON.stringify(data));
+              }
+            } catch(e) {
+              console.error('[Godot bridge error]', e);
+            }
+            console.log('[Godot bridge sent]', JSON.stringify(data));
           }
-        }
+        
+          // Triggered by your exit button or action in play.html
+        function exitWebview() {
+            postToGodot({ type: 'exit_webview' });
+          }
         
         
         
@@ -142,7 +153,7 @@
                 // Hide after 30 seconds
                 setTimeout(function() {
                     btn.style.display = 'none';
-                }, 30000); // 30 seconds = 30,000 ms
+                }, 10000); // 30 seconds = 30,000 ms
             }
         
             // 1. Initial trigger: Show after 2 minutes (120,000 ms)
