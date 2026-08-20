@@ -444,16 +444,8 @@ const BOOK_CATEGORIES = ['All', 'Classic Literature', 'Mystery & Thriller',
 
 const audio = document.getElementById('audio-el');
 
-const LIBRIVOX_BOOKS = [
-  { id: 'lb1', title: 'The Hound of the Baskervilles', author: 'Arthur Conan Doyle', episode: 'Chapter 1', icon: '🐕', type: 'book',
-    stream: 'https://ia800201.us.archive.org/23/items/hound_baskervilles_0809_librivox/hound_of_baskervilles_01_doyle.mp3' },
-  { id: 'lb2', title: 'The Metamorphosis', author: 'Franz Kafka', episode: 'Chapter 1', icon: '🪲', type: 'book',
-    stream: 'https://ia800502.us.archive.org/27/items/metamorphosis_0711_librivox/metamorphosis_01_kafka.mp3' },
-  { id: 'lb3', title: 'Pride and Prejudice', author: 'Jane Austen', episode: 'Chapter 1', icon: '📖', type: 'book',
-    stream: 'https://ia800204.us.archive.org/11/items/pride_and_prejudice_librivox/prideandprejudice_01_austen.mp3' }
-];
 
-let ALL_TRACKS = [...LIBRIVOX_BOOKS];
+let ALL_TRACKS = [];
 
 // ── Build lists ───────────────────────────────────────────────────────────────
 async function buildLists() {
@@ -463,7 +455,7 @@ async function buildLists() {
   buildCategoryChips('podcast-cats', PODCAST_CATEGORIES, 'podcast');
   buildCategoryChips('book-cats',    BOOK_CATEGORIES,    'book');
 
-  bookData = [...LIBRIVOX_BOOKS];
+  bookData = [];
   renderBookList('books-list', bookData, activeBookCategory, bookSearchQuery);
 
   const bookPromises = SEED_BOOK_GENRES.map(g => fetchLibriVoxGenre(g.genre, g.category));
@@ -849,7 +841,7 @@ function updatePlayPauseUI() {
 
 audio.addEventListener('ended', () => {
   updatePlayPauseUI();
-  addTokens(3, 'finishing an episode');
+  addTokens(5, 'finishing an episode');
   clearInterval(watchTimer);
 });
 
@@ -940,7 +932,7 @@ function stampMoment() {
 
   const ts = Math.round(audio.currentTime || 0);
   sessionStamps.push({ trackId: currentTrack.id, streamUrl: currentTrack.stream, timestamp: ts });
-  addTokens(2, 'stamping a best moment');
+  addTokens(8, 'stamping a best moment');
   showToast('⭐ Stamped at ' + fmtTime(ts));
   postToGodot({ type: 'stamp', trackId: currentTrack.id, title: currentTrack.title, streamUrl: currentTrack.stream, timestamp: ts, stamps: sessionStamps });
 
@@ -995,7 +987,7 @@ function startWatchTimer() {
       activeSeconds += 5;
       // 10 minutes = 600 seconds
       if (activeSeconds >= 600) { 
-        addTokens(2, 'listening for 10 minutes');
+        addTokens(10, 'listening for 10 minutes');
         activeSeconds = 0;
       }
     }
