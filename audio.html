@@ -841,7 +841,7 @@ function updatePlayPauseUI() {
 
 audio.addEventListener('ended', () => {
   updatePlayPauseUI();
-  addTokens(5, 'finishing an episode');
+  addTokens(2, 'finishing an episode');
   clearInterval(watchTimer);
 });
 
@@ -932,7 +932,7 @@ function stampMoment() {
 
   const ts = Math.round(audio.currentTime || 0);
   sessionStamps.push({ trackId: currentTrack.id, streamUrl: currentTrack.stream, timestamp: ts });
-  addTokens(8, 'stamping a best moment');
+  addTokens(2, 'stamping a best moment');
   showToast('⭐ Stamped at ' + fmtTime(ts));
   postToGodot({ type: 'stamp', trackId: currentTrack.id, title: currentTrack.title, streamUrl: currentTrack.stream, timestamp: ts, stamps: sessionStamps });
 
@@ -987,7 +987,7 @@ function startWatchTimer() {
       activeSeconds += 5;
       // 10 minutes = 600 seconds
       if (activeSeconds >= 600) { 
-        addTokens(10, 'listening for 10 minutes');
+        addTokens(3, 'listening for 10 minutes');
         activeSeconds = 0;
       }
     }
