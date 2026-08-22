@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Campaigns – QuickFire Trivia</title>
+
+    <style>
+        /* ---------- RESET & BASE ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at 10% 30%, #1a1a2e, #0f0f1a);
+            color: #eee;
+            min-height: 100vh;
+            padding: 24px 16px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+        }
+
+        /* ---------- HEADER ---------- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            font-size: 28px;
+            background: #2a2a4a;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f7b731, #f5a623);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ---------- WELCOME ---------- */
+        .welcome {
+            background: rgba(255, 255, 255, 0.04);
+            border-left: 4px solid #f7b731;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 28px;
+            backdrop-filter: blur(4px);
+        }
+
+        .welcome h2 {
+            font-weight: 500;
+            font-size: 18px;
+        }
+
+        .welcome p {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 6px;
+        }
+
+        /* ---------- CAMPAIGN GRID ---------- */
+        .campaign-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        /* ---------- CARD ---------- */
+        .card {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 20px 18px 22px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+            border-color: rgba(247, 183, 49, 0.3);
+        }
+
+        .card-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 6px;
+            color: #fff;
+        }
+
+        .card-desc {
+            font-size: 13px;
+            color: #bbb;
+            line-height: 1.5;
+            flex-grow: 1;
+            margin-bottom: 16px;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .card-payout {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #8bc34a;
+            border: 1px solid rgba(76, 175, 80, 0.2);
+        }
+
+        .card-btn {
+            background: #f7b731;
+            border: none;
+            color: #0f0f1a;
+            font-weight: 700;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .card-btn:hover {
+            background: #f5a623;
+            transform: scale(1.02);
+        }
+
+        .card-btn:active {
+            transform: scale(0.96);
+        }
+
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 24px;
+        }
+
+        /* ---------- EXIT BUTTON (top‑right) ---------- */
+        #exit-btn {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            z-index: 200;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 215, 0, 0.45);
+            border-radius: 50%;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 300;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            user-select: none;
+        }
+
+        #exit-btn:hover {
+            background: rgba(180, 40, 40, 0.7);
+            transform: scale(1.05);
+        }
+
+        #exit-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* ---------- "NO OFFERS" POPUP (stays open) ---------- */
+        #no-offers-popup {
+            position: fixed;
+            inset: 0;
+            z-index: 150;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            padding: 24px;
+        }
+
+        #no-offers-popup.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .popup-content {
+            background: linear-gradient(145deg, #1e1e38, #14142a);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 28px;
+            padding: 44px 36px 50px;   /* extra bottom padding to push text down */
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+            transform: scale(0.92) translateY(12px);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+            opacity: 0;
+        }
+
+        #no-offers-popup.open .popup-content {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        .popup-icon {
+            font-size: 56px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .popup-content h2 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+        }
+
+        .popup-divider {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #f7b731, transparent);
+            margin: 16px auto 18px;
+            border-radius: 4px;
+        }
+
+        /* message now sits lower thanks to extra padding + margin-top */
+        .popup-content p {
+            font-size: 15px;
+            color: #aaa;
+            line-height: 1.5;
+            margin-top: 24px;      /* extra spacing to push it down */
+        }
+
+        /* ---------- RESPONSIVE ---------- */
+        @media (max-width: 600px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .brand {
+                justify-content: center;
+            }
+
+            .campaign-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .popup-content {
+                padding: 32px 24px 40px;
+            }
+
+            .popup-content h2 {
+                font-size: 22px;
+            }
+
+            #exit-btn {
+                top: 14px;
+                right: 14px;
+                width: 34px;
+                height: 34px;
+                font-size: 17px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== EXIT BUTTON ===== -->
+    <button id="exit-btn" onclick="exitWebview()">&#10005;</button>
+
+    <!-- ===== POPUP (no close button, stays open) ===== -->
+    <div id="no-offers-popup">
+        <div class="popup-content">
+            <span class="popup-icon">📢</span>
+            <h2>No offers for now</h2>
+            <div class="popup-divider"></div>
+            <p>We are working to make offers available soon.</p>
+        </div>
+    </div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="container">
+        <header class="header">
+            <div class="brand">
+                <div class="brand-logo">🎯</div>
+                <span class="brand-name">Offers</span>
+            </div>
+        </header>
+
+        <div class="welcome">
+            <h2>🔥 Earn rewards by completing offers</h2>
+            <p>Tap any campaign below to start. New tasks added daily!</p>
+        </div>
+
+        <div class="campaign-grid">
+            <!-- ===== CARD 1 ===== -->
+            <div class="card">
+                <div class="card-icon">📱</div>
+                <div class="card-title">Install &amp; Play</div>
+                <div class="card-desc">Download a fun puzzle game and reach level 5.</div>
+                <div class="card-footer">
+                    <span class="card-payout">+ $0.50</span>
+                    <a href="#" class="card-btn" target="_blank">Claim</a>
+                </div>
+            </div>
+
+            <!-- ===== CARD 2 ===== -->
+            <div class="card">
+                <div class="card-icon">📝</div>
+                <div class="card-title">Survey – Shopping Habits</div>
+                <div class="card-desc">Answer 5 quick questions about your online shopping.</div>
+                <div class="card-footer">
+                    <span class="card-payout">+ $0.30</span>
+                    <a href="#" class="card-btn" target="_blank">Claim</a>
+                </div>
+            </div>
+
+            <!-- ===== CARD 3 ===== -->
+            <div class="card">
+                <div class="card-icon">🎮</div>
+                <div class="card-title">RPG Adventure</div>
+                <div class="card-desc">Reach level 10 in this epic fantasy RPG.</div>
+                <div class="card-footer">
+                    <span class="card-payout">+ $1.20</span>
+                    <a href="#" class="card-btn" target="_blank">Claim</a>
+                </div>
+            </div>
+
+            <!-- ===== CARD 4 ===== -->
+            <div class="card">
+                <div class="card-icon">💡</div>
+                <div class="card-title">Product Review</div>
+                <div class="card-desc">Watch a short video and share your honest opinion.</div>
+                <div class="card-footer">
+                    <span class="card-payout">+ $0.75</span>
+                    <a href="#" class="card-btn" target="_blank">Claim</a>
+                </div>
+            </div>
+
+            <!-- ===== CARD 5 ===== -->
+            <div class="card">
+                <div class="card-icon">🎬</div>
+                <div class="card-title">Movie Trailer</div>
+                <div class="card-desc">Watch the new trailer and confirm you enjoyed it.</div>
+                <div class="card-footer">
+                    <span class="card-payout">+ $0.20</span>
+                    <a href="#" class="card-btn" target="_blank">Claim</a>
+                </div>
+            </div>
+
+            <!-- ===== CARD 6 ===== -->
+            <div class="card">
+                <div class="card-icon">🛒</div>
+                <div class="card-title">Flash Deal</div>
+                <div class="card-desc">Sign up for a 30‑day free trial of a delivery service.</div>
+                <div class="card-footer">
+                    <span class="card-payout">+ $2.00</span>
+                    <a href="#" class="card-btn" target="_blank">Claim</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            &copy; 2026
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- BRIDGE + POPUP LOGIC                                         -->
+    <!-- ============================================================ -->
+    <script>
+        // ── JS → Godot bridge ──
+        let _bridgeQueue = [];
+        let _bridgeRetryTimer = null;
+
+        function _getBridge() {
+            if (typeof window.JavaScriptBridge !== 'undefined' && window.JavaScriptBridge.postToGodot) {
+                return window.JavaScriptBridge;
+            }
+            if (typeof window.Godot !== 'undefined' && window.Godot.postToGodot) {
+                return window.Godot;
+            }
+            return null;
+        }
+
+        function _startBridgeRetry() {
+            if (_bridgeRetryTimer) return;
+            _bridgeRetryTimer = setInterval(() => {
+                const bridge = _getBridge();
+                if (bridge) {
+                    console.log("postToGodot: bridge became available, flushing " + _bridgeQueue.length + " queued message(s)");
+                    while (_bridgeQueue.length) {
+                        bridge.postToGodot(JSON.stringify(_bridgeQueue.shift()));
+                    }
+                    clearInterval(_bridgeRetryTimer);
+                    _bridgeRetryTimer = null;
+                }
+            }, 250);
+        }
+
+        function postToGodot(data) {
+            const bridge = _getBridge();
+            if (bridge) {
+                console.log("postToGodot:", data);
+                bridge.postToGodot(JSON.stringify(data));
+            } else {
+                console.warn("postToGodot: bridge NOT READY, queuing:", data);
+                _bridgeQueue.push(data);
+                _startBridgeRetry();
+            }
+        }
+
+        // ── Exit webview ──
+        function exitWebview() {
+            postToGodot({ type: 'exit_webview' });
+        }
+
+        // ── "No offers" popup (stays open, no close function) ──
+        let popupTimer = null;
+        let popupShown = false;
+
+        function showNoOffersPopup() {
+            if (popupShown) return;
+            popupShown = true;
+            document.getElementById('no-offers-popup').classList.add('open');
+        }
+
+        // ── Show popup after 3 seconds ──
+        window.addEventListener('load', function() {
+            popupTimer = setTimeout(function() {
+                showNoOffersPopup();
+            }, 4000); // 4 seconds
+
+            postToGodot({ type: 'offers_page_ready' });
+        });
+
+        window.addEventListener('beforeunload', function() {
+            if (popupTimer) {
+                clearTimeout(popupTimer);
+                popupTimer = null;
+            }
+        });
+
+        // ── Log offer clicks ──
+        document.querySelectorAll('.card-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                const card = this.closest('.card');
+                const title = card ? card.querySelector('.card-title')?.textContent || 'unknown' : 'unknown';
+                postToGodot({
+                    type: 'offer_clicked',
+                    offer: title
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>
