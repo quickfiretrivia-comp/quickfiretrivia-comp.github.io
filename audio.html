@@ -456,7 +456,7 @@ async function buildLists() {
   buildCategoryChips('book-cats',    BOOK_CATEGORIES,    'book');
 
   bookData = [];
-  renderBookList('books-list', bookData, activeBookCategory, bookSearchQuery);
+ 
 
   const bookPromises = SEED_BOOK_GENRES.map(g => fetchLibriVoxGenre(g.genre, g.category));
   const [newPodcasts, bookResults] = await Promise.all([
