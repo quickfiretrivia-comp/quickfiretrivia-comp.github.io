@@ -691,6 +691,21 @@ let allJobs = [];
 let activeFilters = { workplace:'all', type:'all', industry:'all' };
 let searchTerm = '';
 
+/* Some sources (e.g. listings pasted in from Gmail) return double-escaped HTML,
+   so the raw text literally contains "&lt;div&gt;" instead of a real <div> tag.
+   Decode entities first, THEN strip real tags, so both cases end up as plain text. */
+function decodeEntities(str){
+  const ta = document.createElement('textarea');
+  ta.innerHTML = str;
+  return ta.value;
+}
+function stripHtml(str){
+  if (!str) return '';
+  const decoded = decodeEntities(str);
+  const doc = new DOMParser().parseFromString(decoded, 'text/html');
+  return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
 function guessIndustry(title, tags){
   const hay = (title + ' ' + (tags||[]).join(' ')).toLowerCase();
   for (const [key, words] of Object.entries(INDUSTRY_KEYWORDS)){
@@ -722,7 +737,7 @@ function normalizeArbeitnow(job){
     type: guessType(job.title, job.job_types),
     industry: guessIndustry(job.title, job.tags),
     tags: (job.tags || []).slice(0,4),
-    description: (job.description || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    description: stripHtml(job.description || '').slice(0, 260),
     url: job.url,
     source: 'Arbeitnow'
   };
@@ -739,7 +754,7 @@ function normalizeRemotive(job){
     type: guessType(job.title, [job.job_type]),
     industry: guessIndustry(job.title, [job.category]),
     tags: [job.category].filter(Boolean),
-    description: (job.description || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    description: stripHtml(job.description || '').slice(0, 260),
     url: job.url,
     source: 'Remotive'
   };
@@ -758,7 +773,7 @@ function normalizeJobicy(job){
     type: guessType(job.jobTitle, typeTags),
     industry: guessIndustry(job.jobTitle, industryTags),
     tags: industryTags.slice(0,4),
-    description: (job.jobExcerpt || job.jobDescription || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    description: stripHtml(job.jobExcerpt || job.jobDescription || '').slice(0, 260),
     url: job.url,
     source: 'Jobicy'
   };
@@ -778,7 +793,7 @@ function normalizeHimalayas(job){
     type: guessType(job.title, [job.employmentType]),
     industry: guessIndustry(job.title, cats),
     tags: cats.slice(0,4),
-    description: (job.excerpt || job.description || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    description: stripHtml(job.excerpt || job.description || '').slice(0, 260),
     url: job.applicationLink,
     source: 'Himalayas'
   };
