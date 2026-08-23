@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Community Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a;
+    --bg-raised:#141311;
+    --bg-card:#181713;
+    --hairline:#2a2823;
+    --text:#f2ede3;
+    --text-dim:#a89f8e;
+    --text-faint:#6b6459;
+    --amber:#e08a3c;
+    --amber-bright:#f4a94f;
+    --clay:#c1512f;
+    --teal:#2f7d76;
+    --teal-bright:#42a89e;
+    --font-display: 'Bricolage Grotesque', 'Sora', sans-serif;
+    --font-body: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'Space Mono', 'SF Mono', Consolas, monospace;
+    --radius: 10px;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* subtle circuit/grain texture backdrop */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      radial-gradient(circle at 15% 8%, rgba(224,138,60,0.06), transparent 40%),
+      radial-gradient(circle at 85% 92%, rgba(47,125,118,0.08), transparent 45%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  a{color:inherit; text-decoration:none;}
+
+  /* ===== Header ===== */
+  header{
+    position:absolute; top:0; left:0; right:0; z-index:60;
+    background:transparent;
+  }
+  .header-inner{
+    max-width:1180px; margin:0 auto;
+    padding:18px 24px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  nav{display:flex; gap:28px; font-size:0.9rem; color:var(--text-dim);}
+  nav a:hover{color:var(--amber-bright);}
+
+  /* ===== Hero ===== */
+  .hero{
+    position:relative;
+    height:clamp(260px, 32vw, 380px);
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    overflow:hidden;
+    border-bottom:1px solid var(--hairline);
+    padding-top:clamp(28px, 5vw, 48px);
+  }
+  .hero-art{
+    position:absolute; inset:0;
+    z-index:0;
+  }
+  .hero-art svg{
+    width:100%; height:100%;
+    display:block;
+  }
+  .hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(10,10,10,0) 35%, var(--bg) 100%);
+    z-index:1;
+  }
+  .hero h1{
+    position:relative; z-index:2;
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(2.3rem, 5.6vw, 4rem);
+    line-height:1;
+    letter-spacing:-0.02em;
+    text-align:center;
+    text-shadow:0 4px 30px rgba(0,0,0,0.5);
+    margin-bottom:6px;
+  }
+  .hero h1 em{
+    font-style:normal;
+    font-weight:400;
+    color:var(--amber-bright);
+  }
+  .hero-tagline{
+    position:relative; z-index:2;
+    font-family:'Fraunces', serif;
+    font-style:italic;
+    font-weight:600;
+    font-size:clamp(1.15rem, 2.4vw, 1.6rem);
+    color:var(--text-dim);
+    text-align:center;
+    max-width:26ch;
+    margin-top:90px;
+  }
+
+  /* ===== Exit button ===== */
+  #exit-btn{
+    position:fixed; top:16px; right:16px; z-index:200;
+    width:34px; height:34px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.5);
+    border:1px solid var(--hairline);
+    border-radius:50%;
+    color:var(--text);
+    font-size:16px;
+    cursor:pointer;
+    backdrop-filter:blur(4px);
+  }
+  #exit-btn:hover{border-color:var(--amber);}
+
+  /* ===== Hamburger menu button ===== */
+  #menu-btn{
+    position:fixed; top:16px; left:16px; z-index:200;
+    width:34px; height:34px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.5);
+    border:1px solid var(--hairline);
+    border-radius:50%;
+    cursor:pointer;
+    backdrop-filter:blur(4px);
+    gap:4px;
+  }
+  #menu-btn:hover{border-color:var(--amber);}
+  #menu-btn .bar{
+    display:block;
+    width:15px; height:2px;
+    background:var(--text);
+    border-radius:2px;
+  }
+  #menu-btn .bars{
+    display:flex; flex-direction:column; gap:3.5px;
+  }
+
+  /* ===== Side menu panel ===== */
+  .menu-overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.5);
+    z-index:210;
+    opacity:0; pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .menu-overlay.open{opacity:1; pointer-events:all;}
+
+  .menu-panel{
+    position:fixed; top:0; left:0; bottom:0;
+    width:min(280px, 78vw);
+    background:#000000;
+    border-right:1px solid var(--hairline);
+    z-index:211;
+    transform:translateX(-100%);
+    transition:transform .28s cubic-bezier(.19,1,.22,1);
+    display:flex; flex-direction:column;
+    padding:18px;
+  }
+  .menu-panel.open{transform:translateX(0);}
+
+  .menu-close{
+    align-self:center;
+    width:44px; height:44px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.06);
+    border:1px solid var(--hairline);
+    border-radius:50%;
+    color:var(--text);
+    font-size:30px;
+    line-height:1;
+    cursor:pointer;
+    margin-bottom:36px;
+  }
+  .menu-close:hover{border-color:var(--amber);}
+
+  .menu-items{
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .menu-item{
+    text-align:left;
+    background:var(--bg-raised);
+    border:1px solid var(--hairline);
+    color:var(--text);
+    font-family:var(--font-body);
+    font-size:0.92rem;
+    padding:13px 16px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .menu-item:hover{border-color:var(--amber); color:var(--amber-bright);}
+
+  /* ===== Sponsorship progress — signature element ===== */
+  .sponsor-section{
+    max-width:1180px; margin:0 auto;
+    padding:0 24px 56px;
+    position:relative; z-index:1;
+  }
+  .sponsor-card{
+    background:var(--bg-raised);
+    border:1px solid var(--hairline);
+    border-radius:16px;
+    padding:32px clamp(20px,4vw,40px);
+    position:relative;
+    overflow:hidden;
+  }
+  .sponsor-top{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    flex-wrap:wrap; gap:16px;
+    margin-bottom:22px;
+  }
+  .sponsor-label{
+    font-family:var(--font-mono);
+    font-size:14.5px; letter-spacing:0.1em; text-transform:uppercase;
+    color:#ffffff;
+    margin-bottom:6px;
+  }
+  .sponsor-count{
+    font-family:var(--font-display);
+    font-size:2.6rem; font-weight:600;
+    color:var(--text);
+  }
+  .sponsor-count span{color:var(--text-faint); font-size:1.4rem; font-weight:400;}
+  .sponsor-target{
+    text-align:right;
+    font-family:var(--font-mono);
+    font-size:0.85rem;
+    color:var(--text-dim);
+  }
+  .sponsor-target b{color:var(--amber-bright); font-weight:600;}
+
+  /* trail-marker progress bar: track resembles a footpath with waypoint pegs */
+  .trail{
+    position:relative;
+    height:14px;
+    background:var(--bg-card);
+    border-radius:7px;
+    border:1px solid var(--hairline);
+    overflow:visible;
+  }
+  .trail-fill{
+    height:100%;
+    border-radius:7px;
+    background:linear-gradient(90deg, var(--clay), var(--amber), var(--amber-bright));
+    width:0%;
+    transition:width 1.4s cubic-bezier(.19,1,.22,1);
+    position:relative;
+  }
+  .trail-fill::after{
+    content:"";
+    position:absolute; right:-3px; top:50%; transform:translateY(-50%);
+    width:22px; height:22px; border-radius:50%;
+    background:var(--amber-bright);
+    box-shadow:0 0 0 4px rgba(244,169,79,0.18), 0 0 14px rgba(244,169,79,0.5);
+  }
+  .trail-pegs{
+    display:flex; justify-content:space-between;
+    margin-top:10px;
+    font-family:var(--font-mono);
+    font-size:0.68rem;
+    color:var(--text-faint);
+  }
+  .sponsor-note{
+    margin-top:20px;
+    font-size:0.88rem;
+    color:var(--text-dim);
+    border-top:1px solid var(--hairline);
+    padding-top:16px;
+  }
+
+  /* ===== Jobs dashboard ===== */
+  .jobs-section{
+    max-width:1180px; margin:0 auto;
+    padding:8px 24px 80px;
+    position:relative; z-index:1;
+  }
+  .jobs-header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    flex-wrap:wrap; gap:16px;
+    margin-bottom:24px;
+  }
+  .jobs-header h2{
+    font-family:var(--font-display);
+    font-size:1.7rem; font-weight:600;
+  }
+  .jobs-meta{
+    font-family:var(--font-mono);
+    font-size:0.78rem;
+    color:var(--text-faint);
+  }
+  .jobs-meta.live::before{content:"● "; color:var(--teal-bright);}
+
+  .filter-bar{
+    display:flex; flex-wrap:wrap; gap:10px;
+    margin-bottom:16px;
+  }
+  .filter-group{
+    display:flex; flex-wrap:wrap; gap:6px;
+  }
+  .chip{
+    font-family:var(--font-body);
+    font-size:0.82rem;
+    padding:7px 14px;
+    border-radius:20px;
+    border:1px solid var(--hairline);
+    background:var(--bg-raised);
+    color:var(--text-dim);
+    cursor:pointer;
+    transition:all .15s ease;
+    white-space:nowrap;
+  }
+  .chip:hover{border-color:var(--amber); color:var(--text);}
+  .chip.active{
+    background:var(--amber);
+    border-color:var(--amber);
+    color:#0a0a0a;
+    font-weight:600;
+  }
+
+  .search-row{
+    display:flex; gap:10px;
+    margin-bottom:28px;
+  }
+  .search-input{
+    flex:1;
+    background:var(--bg-card);
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    padding:12px 16px;
+    color:var(--text);
+    font-family:var(--font-body);
+    font-size:0.92rem;
+  }
+  .search-input:focus{outline:none; border-color:var(--teal-bright);}
+  .search-input::placeholder{color:var(--text-faint);}
+
+  .jobs-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+    gap:14px;
+  }
+
+  .job-card{
+    background:var(--bg-raised);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:20px;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .15s ease;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .job-card:hover{border-color:var(--amber); transform:translateY(-2px);}
+
+  .job-card-top{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+  }
+  .job-title{font-size:1.02rem; font-weight:600; color:var(--text); line-height:1.3;}
+  .job-company{font-size:0.85rem; color:var(--text-dim); margin-top:2px;}
+  .badge-remote{
+    font-family:var(--font-mono);
+    font-size:0.66rem; letter-spacing:0.04em; text-transform:uppercase;
+    padding:4px 8px; border-radius:5px;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .badge-remote.remote{background:rgba(47,125,118,0.18); color:var(--teal-bright); border:1px solid rgba(47,125,118,0.4);}
+  .badge-remote.hybrid{background:rgba(224,138,60,0.15); color:var(--amber-bright); border:1px solid rgba(224,138,60,0.35);}
+  .badge-remote.onsite{background:rgba(255,255,255,0.06); color:var(--text-dim); border:1px solid var(--hairline);}
+
+  .job-meta-row{
+    display:flex; flex-wrap:wrap; gap:8px;
+    font-size:0.78rem; color:var(--text-faint);
+    font-family:var(--font-mono);
+  }
+  .job-meta-row span{display:flex; align-items:center; gap:4px;}
+
+  .job-tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;}
+  .tag{
+    font-size:0.72rem; padding:3px 9px;
+    border-radius:12px;
+    background:var(--bg-card);
+    color:var(--text-dim);
+    border:1px solid var(--hairline);
+  }
+
+  .empty-state, .loading-state{
+    grid-column:1/-1;
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-faint);
+    font-family:var(--font-mono);
+    font-size:0.88rem;
+  }
+
+  /* ===== Quick-view panel ===== */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.6);
+    backdrop-filter:blur(2px);
+    z-index:100;
+    opacity:0; pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .overlay.open{opacity:1; pointer-events:all;}
+
+  .panel{
+    position:fixed; top:0; right:0; bottom:0;
+    width:min(440px, 92vw);
+    background:var(--bg-raised);
+    border-left:1px solid var(--hairline);
+    z-index:101;
+    transform:translateX(100%);
+    transition:transform .28s cubic-bezier(.19,1,.22,1);
+    overflow-y:auto;
+    padding:28px;
+  }
+  .panel.open{transform:translateX(0);}
+  .panel-close{
+    background:none; border:1px solid var(--hairline);
+    color:var(--text-dim);
+    width:44px; height:44px; border-radius:50%;
+    cursor:pointer; font-size:30px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:20px;
+  }
+  .panel-close:hover{color:var(--text); border-color:var(--amber);}
+  .panel h3{font-family:var(--font-display); font-size:1.4rem; margin-bottom:4px;}
+  .panel .job-company{margin-bottom:16px;}
+  .panel-section{margin-top:22px;}
+  .panel-section h4{
+    font-family:var(--font-mono); font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--teal-bright); margin-bottom:8px;
+  }
+  .panel-section p{font-size:0.9rem; color:var(--text-dim); line-height:1.6;}
+  .panel-section ul{padding-left:18px; color:var(--text-dim); font-size:0.9rem; line-height:1.7;}
+  .panel-apply{
+    display:block; text-align:center;
+    margin-top:26px;
+    background:linear-gradient(135deg, var(--amber), var(--clay));
+    color:#0a0a0a; font-weight:700;
+    padding:13px; border-radius:10px;
+    font-size:0.92rem;
+  }
+  .panel-apply:hover{filter:brightness(1.08);}
+
+  footer{
+    border-top:1px solid var(--hairline);
+    padding:28px 24px;
+    text-align:center;
+    color:var(--text-faint);
+    font-size:0.8rem;
+    font-family:var(--font-mono);
+  }
+
+  @media (max-width:640px){
+    nav{display:none;}
+    .sponsor-top{flex-direction:column; align-items:flex-start;}
+    .sponsor-target{text-align:left;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .trail-fill{transition:none;}
+    .job-card{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<button id="exit-btn" onclick="exitWebview()">&#10005;</button>
+<button id="menu-btn" onclick="toggleMenu()" aria-label="Open menu">
+  <span class="bars">
+    <span class="bar"></span>
+    <span class="bar"></span>
+    <span class="bar"></span>
+  </span>
+</button>
+
+<div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="menu-panel" id="menuPanel">
+  <button class="menu-close" onclick="closeMenu()" aria-label="Close menu">&#8250;</button>
+  <div class="menu-items">
+    <button class="menu-item" onclick="postToGodot({type:'feedback'})">Feedback</button>
+  </div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <nav>
+      <a href="#sponsor">Sponsorship</a>
+      <a href="#jobs">Jobs &amp; Internships</a>
+      <a href="#">Community</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-art" aria-hidden="true">
+    <svg viewBox="0 0 900 500" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="blob1" cx="30%" cy="35%" r="70%">
+          <stop offset="0%" stop-color="#f4a94f"/>
+          <stop offset="45%" stop-color="#c1512f"/>
+          <stop offset="100%" stop-color="#0a0a0a" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="blob2" cx="75%" cy="60%" r="65%">
+          <stop offset="0%" stop-color="#42a89e"/>
+          <stop offset="50%" stop-color="#2f7d76"/>
+          <stop offset="100%" stop-color="#0a0a0a" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="grain">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="noise"/>
+          <feColorMatrix in="noise" type="saturate" values="0"/>
+          <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
+          <feComposite operator="over" in2="SourceGraphic"/>
+        </filter>
+      </defs>
+      <rect width="900" height="500" fill="#0a0a0a"/>
+      <ellipse cx="270" cy="175" rx="420" ry="340" fill="url(#blob1)" opacity="0.85"/>
+      <ellipse cx="680" cy="330" rx="380" ry="300" fill="url(#blob2)" opacity="0.75"/>
+      <rect width="900" height="500" filter="url(#grain)" opacity="0.4"/>
+    </svg>
+  </div>
+  <h1>Community <em>Hub</em></h1>
+  <p class="hero-tagline">Build a brighter future side by side.</p>
+</section>
+
+<section class="sponsor-section" id="sponsor">
+  <div class="sponsor-card">
+    <div class="sponsor-top">
+      <div>
+        <div class="sponsor-label">Students sponsored so far</div>
+        <div class="sponsor-count" id="sponsorCount">0<span>students</span></div>
+      </div>
+      <div class="sponsor-target">Target: <b id="sponsorTarget">500</b> by <span id="sponsorTargetDate">September 2027</span></div>
+    </div>
+    <div class="trail">
+      <div class="trail-fill" id="trailFill"></div>
+    </div>
+    <div class="trail-pegs">
+      <span>0</span><span>125</span><span>250</span><span>375</span><span>500</span>
+    </div>
+    <p class="sponsor-note">Every time you use the app, you bring a student's tuition closer to reality.</p>
+  </div>
+</section>
+
+<section class="jobs-section" id="jobs">
+  <div class="jobs-header">
+    <h2>Jobs &amp; Internships</h2>
+    <div class="jobs-meta live" id="jobsMeta">Loading listings…</div>
+  </div>
+
+  <div class="search-row">
+    <input type="text" class="search-input" id="searchInput" placeholder="Search role, company, or keyword…">
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group" data-filter="workplace">
+      <button class="chip active" data-value="all">All workplace</button>
+      <button class="chip" data-value="remote">100% Remote</button>
+      <button class="chip" data-value="hybrid">Hybrid</button>
+      <button class="chip" data-value="onsite">On-site</button>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-group" data-filter="type">
+      <button class="chip active" data-value="all">All types</button>
+      <button class="chip" data-value="internship">Internship</button>
+      <button class="chip" data-value="fulltime">Full-time</button>
+      <button class="chip" data-value="contract">Contract</button>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-group" data-filter="industry">
+      <button class="chip active" data-value="all">All industries</button>
+      <button class="chip" data-value="engineering">Engineering &amp; IT</button>
+      <button class="chip" data-value="design">Design</button>
+      <button class="chip" data-value="marketing">Marketing</button>
+      <button class="chip" data-value="finance">Finance</button>
+      <button class="chip" data-value="support">Customer Support</button>
+      <button class="chip" data-value="other">Other</button>
+    </div>
+  </div>
+
+  <div class="jobs-grid" id="jobsGrid">
+    <div class="loading-state">Fetching open roles from Arbeitnow &amp; Remotive…</div>
+  </div>
+</section>
+
+<footer>&copy; 2026</footer>
+
+<div class="overlay" id="overlay"></div>
+<div class="panel" id="panel">
+  <button class="panel-close" id="panelClose">&#8249;</button>
+  <div id="panelContent"></div>
+</div>
+
+<script>
+/* ---------- Godot WebView bridge (exit button) ---------- */
+let _bridgeQueue = [];
+let _bridgeRetryTimer = null;
+
+function _getBridge(){
+  if (typeof window.JavaScriptBridge !== 'undefined' && window.JavaScriptBridge.postToGodot){
+    return window.JavaScriptBridge;
+  }
+  if (typeof window.Godot !== 'undefined' && window.Godot.postToGodot){
+    return window.Godot;
+  }
+  return null;
+}
+
+function _startBridgeRetry(){
+  if (_bridgeRetryTimer) return;
+  _bridgeRetryTimer = setInterval(() => {
+    const bridge = _getBridge();
+    if (bridge){
+      while (_bridgeQueue.length){
+        bridge.postToGodot(JSON.stringify(_bridgeQueue.shift()));
+      }
+      clearInterval(_bridgeRetryTimer);
+      _bridgeRetryTimer = null;
+    }
+  }, 250);
+}
+
+function postToGodot(data){
+  const bridge = _getBridge();
+  if (bridge){
+    bridge.postToGodot(JSON.stringify(data));
+  } else {
+    _bridgeQueue.push(data);
+    _startBridgeRetry();
+  }
+}
+
+function exitWebview(){
+  postToGodot({ type: 'exit_webview' });
+}
+
+/* ---------- Hamburger side menu ---------- */
+function toggleMenu(){
+  document.getElementById('menuPanel').classList.toggle('open');
+  document.getElementById('menuOverlay').classList.toggle('open');
+}
+function closeMenu(){
+  document.getElementById('menuPanel').classList.remove('open');
+  document.getElementById('menuOverlay').classList.remove('open');
+}
+
+/* ---------- Sponsorship progress bar ---------- */
+/* Change count/target/targetDate here — the bar, count, and pegs all follow automatically. */
+const sponsorState = { count: 187, target: 500, targetDate: 'September 2027' };
+function renderSponsorBar(){
+  document.getElementById('sponsorCount').innerHTML = sponsorState.count + '<span>students</span>';
+  document.getElementById('sponsorTarget').textContent = sponsorState.target;
+  document.getElementById('sponsorTargetDate').textContent = sponsorState.targetDate;
+  const pct = Math.min(100, (sponsorState.count / sponsorState.target) * 100);
+  requestAnimationFrame(() => {
+    document.getElementById('trailFill').style.width = pct + '%';
+  });
+}
+renderSponsorBar();
+
+/* ---------- Jobs & Internships ---------- */
+const INDUSTRY_KEYWORDS = {
+  engineering: ['engineer','developer','software','data','devops','it ','backend','frontend','fullstack','qa','sysadmin','cloud'],
+  design: ['design','ux','ui','product design','graphic'],
+  marketing: ['marketing','growth','seo','content','social media','brand'],
+  finance: ['finance','accounting','accountant','bookkeep','financial'],
+  support: ['support','customer service','customer success','helpdesk']
+};
+const AFRICA_KEYWORDS = ['worldwide','anywhere','global','remote-first','africa','kenya','nairobi','uganda','tanzania','rwanda','ethiopia','emea','international'];
+
+let allJobs = [];
+let activeFilters = { workplace:'all', type:'all', industry:'all' };
+let searchTerm = '';
+
+function guessIndustry(title, tags){
+  const hay = (title + ' ' + (tags||[]).join(' ')).toLowerCase();
+  for (const [key, words] of Object.entries(INDUSTRY_KEYWORDS)){
+    if (words.some(w => hay.includes(w))) return key;
+  }
+  return 'other';
+}
+
+function guessType(title, jobTypes){
+  const hay = (title + ' ' + (jobTypes||[]).join(' ')).toLowerCase();
+  if (hay.includes('intern')) return 'internship';
+  if (hay.includes('contract') || hay.includes('freelance')) return 'contract';
+  return 'fulltime';
+}
+
+function isAfricaEligible(locationStr){
+  const loc = (locationStr || '').toLowerCase();
+  return AFRICA_KEYWORDS.some(k => loc.includes(k)) || loc.trim() === '';
+}
+
+function normalizeArbeitnow(job){
+  const loc = job.location || 'Worldwide';
+  return {
+    id: 'an-' + job.slug,
+    title: job.title,
+    company: job.company_name,
+    location: loc,
+    workplace: job.remote ? 'remote' : 'onsite',
+    type: guessType(job.title, job.job_types),
+    industry: guessIndustry(job.title, job.tags),
+    tags: (job.tags || []).slice(0,4),
+    description: (job.description || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    url: job.url,
+    source: 'Arbeitnow'
+  };
+}
+
+function normalizeRemotive(job){
+  const loc = job.candidate_required_location || 'Worldwide';
+  return {
+    id: 'rm-' + job.id,
+    title: job.title,
+    company: job.company_name,
+    location: loc,
+    workplace: 'remote',
+    type: guessType(job.title, [job.job_type]),
+    industry: guessIndustry(job.title, [job.category]),
+    tags: [job.category].filter(Boolean),
+    description: (job.description || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    url: job.url,
+    source: 'Remotive'
+  };
+}
+
+function normalizeJobicy(job){
+  const loc = job.jobGeo || 'Worldwide';
+  const industryTags = Array.isArray(job.jobIndustry) ? job.jobIndustry : [job.jobIndustry].filter(Boolean);
+  const typeTags = Array.isArray(job.jobType) ? job.jobType : [job.jobType].filter(Boolean);
+  return {
+    id: 'jc-' + job.id,
+    title: job.jobTitle,
+    company: job.companyName,
+    location: loc,
+    workplace: 'remote',
+    type: guessType(job.jobTitle, typeTags),
+    industry: guessIndustry(job.jobTitle, industryTags),
+    tags: industryTags.slice(0,4),
+    description: (job.jobExcerpt || job.jobDescription || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    url: job.url,
+    source: 'Jobicy'
+  };
+}
+
+function normalizeHimalayas(job){
+  const loc = (job.locationRestrictions && job.locationRestrictions.length)
+    ? job.locationRestrictions.map(l => l.name).join(', ')
+    : 'Worldwide';
+  const cats = job.categories || [];
+  return {
+    id: 'hm-' + job.guid,
+    title: job.title,
+    company: job.companyName,
+    location: loc,
+    workplace: 'remote',
+    type: guessType(job.title, [job.employmentType]),
+    industry: guessIndustry(job.title, cats),
+    tags: cats.slice(0,4),
+    description: (job.excerpt || job.description || '').replace(/<[^>]*>/g,'').slice(0, 260),
+    url: job.applicationLink,
+    source: 'Himalayas'
+  };
+}
+
+async function loadJobs(){
+  const results = [];
+  try{
+    const r1 = await fetch('https://www.arbeitnow.com/api/job-board-api');
+    const d1 = await r1.json();
+    (d1.data || []).forEach(j => results.push(normalizeArbeitnow(j)));
+  } catch(e){ console.warn('Arbeitnow fetch failed', e); }
+
+  try{
+    const r2 = await fetch('https://remotive.com/api/remote-jobs?limit=80');
+    const d2 = await r2.json();
+    (d2.jobs || []).forEach(j => results.push(normalizeRemotive(j)));
+  } catch(e){ console.warn('Remotive fetch failed', e); }
+
+  try{
+    const r3 = await fetch('https://jobicy.com/api/v2/remote-jobs?count=50');
+    const d3 = await r3.json();
+    (d3.jobs || []).forEach(j => results.push(normalizeJobicy(j)));
+  } catch(e){ console.warn('Jobicy fetch failed', e); }
+
+  try{
+    const r4 = await fetch('https://himalayas.app/jobs/api?limit=20');
+    const d4 = await r4.json();
+    (d4.jobs || []).forEach(j => results.push(normalizeHimalayas(j)));
+  } catch(e){ console.warn('Himalayas fetch failed', e); }
+
+  // Keep only Africa/Worldwide-eligible + de-dupe by title+company
+  const seen = new Set();
+  allJobs = results.filter(j => {
+    if (!isAfricaEligible(j.location)) return false;
+    const key = (j.title + j.company).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  document.getElementById('jobsMeta').textContent = allJobs.length + ' open roles · updated just now';
+  renderJobs();
+}
+
+function jobMatchesFilters(job){
+  if (activeFilters.workplace !== 'all' && job.workplace !== activeFilters.workplace) return false;
+  if (activeFilters.type !== 'all' && job.type !== activeFilters.type) return false;
+  if (activeFilters.industry !== 'all' && job.industry !== activeFilters.industry) return false;
+  if (searchTerm){
+    const hay = (job.title + ' ' + job.company).toLowerCase();
+    if (!hay.includes(searchTerm.toLowerCase())) return false;
+  }
+  return true;
+}
+
+function renderJobs(){
+  const grid = document.getElementById('jobsGrid');
+  const filtered = allJobs.filter(jobMatchesFilters);
+
+  if (filtered.length === 0){
+    grid.innerHTML = '<div class="empty-state">No roles match those filters yet — try widening your search.</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.slice(0, 60).map(job => `
+    <div class="job-card" data-id="${job.id}">
+      <div class="job-card-top">
+        <div>
+          <div class="job-title">${escapeHtml(job.title)}</div>
+          <div class="job-company">${escapeHtml(job.company)}</div>
+        </div>
+        <span class="badge-remote ${job.workplace}">${job.workplace}</span>
+      </div>
+      <div class="job-meta-row">
+        <span>📍 ${escapeHtml(job.location)}</span>
+        <span>· ${capitalize(job.type)}</span>
+        <span>· ${job.source}</span>
+      </div>
+      <div class="job-tags">
+        ${job.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.job-card').forEach(card => {
+    card.addEventListener('click', () => openPanel(card.dataset.id));
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+function capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+function openPanel(id){
+  const job = allJobs.find(j => j.id === id);
+  if (!job) return;
+  document.getElementById('panelContent').innerHTML = `
+    <h3>${escapeHtml(job.title)}</h3>
+    <div class="job-company">${escapeHtml(job.company)} · ${escapeHtml(job.location)}</div>
+    <div class="job-meta-row" style="margin-top:10px;">
+      <span class="badge-remote ${job.workplace}">${job.workplace}</span>
+      <span>${capitalize(job.type)}</span>
+      <span>${job.source}</span>
+    </div>
+    <div class="panel-section">
+      <h4>Role summary</h4>
+      <p>${escapeHtml(job.description) || 'Full details available on the employer listing — tap apply below to read more.'}${job.description.length >= 260 ? '…' : ''}</p>
+    </div>
+    <div class="panel-section">
+      <h4>Tags</h4>
+      <div class="job-tags">${job.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('') || '<span class="tag">General</span>'}</div>
+    </div>
+    <a class="panel-apply" href="${job.url}" target="_blank" rel="noopener">View full listing &amp; apply →</a>
+  `;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').classList.add('open');
+}
+
+function closePanel(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('panel').classList.remove('open');
+}
+document.getElementById('overlay').addEventListener('click', closePanel);
+document.getElementById('panelClose').addEventListener('click', closePanel);
+
+document.querySelectorAll('.filter-group').forEach(group => {
+  const key = group.dataset.filter;
+  group.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeFilters[key] = chip.dataset.value;
+      renderJobs();
+    });
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  searchTerm = e.target.value;
+  renderJobs();
+});
+
+loadJobs();
+</script>
+
+</body>
+</html>
