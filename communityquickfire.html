@@ -799,6 +799,60 @@ function normalizeHimalayas(job){
   };
 }
 
+
+
+function normalizeRemoteOK(job) {
+  // RemoteOK returns an array of jobs with fields like 'position', 'company', 'location', 'url', 'tags'
+  const loc = job.location || 'Worldwide';
+  return {
+    id: 'rok-' + job.id,
+    title: job.position,
+    company: job.company,
+    location: loc,
+    workplace: 'remote',
+    type: guessType(job.position, []),
+    industry: guessIndustry(job.position, job.tags || []),
+    tags: (job.tags || []).slice(0,4),
+    description: stripHtml(job.description || '').slice(0, 260),
+    url: job.url,
+    source: 'RemoteOK'
+  };
+}
+
+function normalizeJSearch(job) {
+  const location = [job.job_city, job.job_country].filter(Boolean).join(', ') || 'Worldwide';
+  const desc = (job.job_description || '').replace(/<[^>]*>/g, '').slice(0, 260);
+  
+  const text = (job.job_title + ' ' + desc).toLowerCase();
+  let workplace = 'onsite';
+  if (text.includes('remote') || text.includes('work from home') || text.includes('anywhere')) {
+    workplace = 'remote';
+  } else if (text.includes('hybrid')) {
+    workplace = 'hybrid';
+  }
+
+  let type = 'fulltime';
+  const typeText = (job.job_title + ' ' + (job.job_employment_type || '')).toLowerCase();
+  if (typeText.includes('intern')) type = 'internship';
+  else if (typeText.includes('contract') || typeText.includes('freelance')) type = 'contract';
+
+  const industry = guessIndustry(job.job_title, []);
+
+  return {
+    id: 'js-' + job.job_id,
+    title: job.job_title,
+    company: job.employer_name || 'Unknown Company',
+    location: location,
+    workplace: workplace,
+    type: type,
+    industry: industry,
+    tags: [job.job_employment_type].filter(Boolean),
+    description: desc,
+    url: job.job_apply_link || '#',
+    source: 'JSearch'
+  };
+}
+
 async function loadJobs(){
   const results = [];
   try{
@@ -813,17 +867,39 @@ async function loadJobs(){
     (d2.jobs || []).forEach(j => results.push(normalizeRemotive(j)));
   } catch(e){ console.warn('Remotive fetch failed', e); }
 
-  try{
-    const r3 = await fetch('https://jobicy.com/api/v2/remote-jobs?count=50');
-    const d3 = await r3.json();
-    (d3.jobs || []).forEach(j => results.push(normalizeJobicy(j)));
-  } catch(e){ console.warn('Jobicy fetch failed', e); }
+  // ── Fixed: single slash, not double ──
+  const WORKER_BASE = 'https://job-proxy.barakirungu.workers.dev/?api=';
 
-  try{
-    const r4 = await fetch('https://himalayas.app/jobs/api?limit=20');
+  try {
+    const r3 = await fetch(WORKER_BASE + 'jobicy');
+    const d3 = await r3.json();
+    // Jobicy returns { jobs: [...] }
+    (d3.jobs || []).forEach(j => results.push(normalizeJobicy(j)));
+  } catch(e) { console.warn('Jobicy fetch failed', e); }
+
+  try {
+    const r4 = await fetch(WORKER_BASE + 'himalayas');
     const d4 = await r4.json();
+    // Himalayas returns { jobs: [...] }
     (d4.jobs || []).forEach(j => results.push(normalizeHimalayas(j)));
-  } catch(e){ console.warn('Himalayas fetch failed', e); }
+  } catch(e) { console.warn('Himalayas fetch failed', e); }
+
+  try {
+    const r5 = await fetch(WORKER_BASE + 'remoteok');
+    const d5 = await r5.json();
+    // RemoteOK returns { jobs: [...] } – NOT an array directly
+    (d5.jobs || []).forEach(j => results.push(normalizeRemoteOK(j)));
+  } catch(e) { console.warn('RemoteOK fetch failed', e); }
+
+  // JSearch – the important one for Kenya jobs
+  try {
+    const query = 'jobs internships Kenya Nairobi'; // general, can be changed
+    const r6 = await fetch(`${WORKER_BASE}jsearch&query=${encodeURIComponent(query)}`);
+    const d6 = await r6.json();
+    if (d6.data) {
+      d6.data.forEach(j => results.push(normalizeJSearch(j)));
+    }
+  } catch(e) { console.warn('JSearch fetch failed', e); }
 
   // Keep only Africa/Worldwide-eligible + de-dupe by title+company
   const seen = new Set();
