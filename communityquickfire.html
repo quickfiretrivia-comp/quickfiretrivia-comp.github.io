@@ -1131,7 +1131,6 @@ function renderJobs(){
       <div class="job-meta-row">
         <span>📍 ${escapeHtml(job.location)}</span>
         <span>· ${capitalize(job.type)}</span>
-        <span>· ${job.source}</span>
       </div>
       <div class="job-tags">
         ${job.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
@@ -1160,7 +1159,6 @@ function openPanel(id){
     <div class="job-meta-row" style="margin-top:10px;">
       <span class="badge-remote ${job.workplace}">${job.workplace}</span>
       <span>${capitalize(job.type)}</span>
-      <span>${job.source}</span>
     </div>
     <div class="panel-section">
       <h4>Role summary</h4>
