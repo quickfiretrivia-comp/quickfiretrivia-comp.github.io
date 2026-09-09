@@ -1082,7 +1082,7 @@ async function loadJobs(){
     (bundle.sources?.jobicy?.jobs || []).forEach(j => results.push(normalizeJobicy(j)));
     (bundle.sources?.himalayas?.jobs || []).forEach(j => results.push(normalizeHimalayas(j)));
     (bundle.sources?.remoteok?.jobs || []).forEach(j => results.push(normalizeRemoteOK(j)));
-    (bundle.sources?.jsearch?.data || []).forEach(j => results.push(normalizeJSearch(j)));
+    (bundle.sources?.jsearch?.jobs || []).forEach(j => results.push(normalizeJSearch(j)));
   } catch(e) { console.warn('Worker bundle fetch failed', e); }
 
   // Keep only Africa/Worldwide-eligible + de-dupe by title+company
