@@ -1086,9 +1086,17 @@ async function loadJobs(){
   } catch(e) { console.warn('Worker bundle fetch failed', e); }
 
   // Keep only Africa/Worldwide-eligible + de-dupe by title+company
+    // Keep only Africa/Worldwide-eligible
+  const eligible = results.filter(j => isAfricaEligible(j.location));
+
+  // Put JSearch first, keep the rest in their original order
+  const jsearchJobs = eligible.filter(j => j.source === 'JSearch');
+  const otherJobs = eligible.filter(j => j.source !== 'JSearch');
+  const ordered = [...jsearchJobs, ...otherJobs];
+
+  // De-dupe by title+company, letting JSearch win duplicates
   const seen = new Set();
-  allJobs = results.filter(j => {
-    if (!isAfricaEligible(j.location)) return false;
+  allJobs = ordered.filter(j => {
     const key = (j.title + j.company).toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
@@ -1119,7 +1127,7 @@ function renderJobs(){
     return;
   }
 
-  grid.innerHTML = filtered.slice(0, 60).map(job => `
+  grid.innerHTML = filtered.slice(0, 500).map(job => `
     <div class="job-card" data-id="${job.id}">
       <div class="job-card-top">
         <div>
